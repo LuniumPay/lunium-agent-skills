@@ -1,6 +1,6 @@
 ---
 name: luniumpay-custody
-description: "Receber Pix em saldo em reais na LuniumPay (sem carteira fixa), separar por cliente com subcontas, sacar em cripto para qualquer rede do catálogo, pagar Pix com o saldo e transferir entre subcontas. Use quando o dono do app não tem carteira, quer acumular e sacar depois, opera marketplace/plataforma com vários clientes finais, ou precisa pagar fornecedores em Pix com o que recebeu."
+description: "Receber Pix em saldo em reais na LuniumPay (sem carteira fixa), separar por cliente com subcontas, sacar em cripto para qualquer rede do catálogo, pagar Pix com o saldo e transferir entre subcontas. Use quando o dono do app não tem carteira, quer acumular e sacar depois, opera marketplace/plataforma com vários clientes finais, ou precisa pagar fornecedores em Pix com o que recebeu. EN: Receive Pix into a BRL custody balance (no fixed wallet), per-customer sub-accounts, withdraw as crypto to any catalog network, pay Pix from the balance, internal transfers. Use for marketplaces/platforms or owners without a wallet."
 ---
 
 # Custódia: Pix entra em reais, sai como você quiser

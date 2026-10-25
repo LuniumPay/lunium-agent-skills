@@ -1,6 +1,6 @@
 ---
 name: luniumpay-verify-payment
-description: "Provar que um pagamento Pix brasileiro liquidou de verdade, sem chave e sem conta, a partir do identificador E2E do Banco Central. Use quando alguém alegar \"já paguei\", antes de liberar produto/acesso/crédito, ou para conciliar um comprovante da LuniumPay."
+description: "Provar que um pagamento Pix brasileiro liquidou de verdade, sem chave e sem conta, a partir do identificador E2E do Banco Central. Use quando alguém alegar \"já paguei\", antes de liberar produto/acesso/crédito, ou para conciliar um comprovante da LuniumPay. EN: Prove that a Brazilian Pix payment settled, with no key and no account, from the Central Bank E2E identifier. Use before releasing goods/access when someone says \"I already paid\"."
 ---
 
 # Verificar um Pix (aberto, sem credencial)

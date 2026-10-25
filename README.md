@@ -30,6 +30,16 @@ Manual: copie as pastas para o diretório de skills do agente
 | `luniumpay-usdt-wallet` | Saldo em USDT e Pix pago com ele (chave ou copia e cola) | |
 | `luniumpay-verify-payment` | Provar que um Pix liquidou, sem chave | |
 
+## Montar no seu projeto em um comando / Scaffold into your project
+
+```bash
+node luniumpay/scripts/init.mjs --email voce@empresa.com      # detecta Next.js, Express, FastAPI ou Supabase
+```
+
+Grava as rotas de cobrança, status e webhook da receita oficial no seu projeto (nunca sobrescreve), o
+`.env.example`, cria uma chave de **sandbox** no `.env` local (0600, nunca impressa) e lista os próximos passos.
+`--stack next|express|fastapi|supabase` força a stack; `--dry` só mostra o plano.
+
 ## Testar sem dinheiro / Try with no money
 
 ```bash

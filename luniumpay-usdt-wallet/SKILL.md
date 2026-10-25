@@ -1,6 +1,6 @@
 ---
 name: luniumpay-usdt-wallet
-description: "Carteira USDT/USDC na LuniumPay — depositar stablecoin em várias redes, manter saldo em cripto e pagar Pix com ele por chave Pix ou Pix Copia e Cola, com cotação, reserva e comprovante. Use quando o dono do app quer pagar contas, fornecedores ou clientes em Pix usando USDT que já possui, sem converter antes."
+description: "Carteira USDT/USDC na LuniumPay — depositar stablecoin em várias redes, manter saldo em cripto e pagar Pix com ele por chave Pix ou Pix Copia e Cola, com cotação, reserva e comprovante. Use quando o dono do app quer pagar contas, fornecedores ou clientes em Pix usando USDT que já possui, sem converter antes. EN: USDT/USDC wallet at LuniumPay: deposit stablecoin on several networks, hold a crypto balance and pay Pix from it by key or copy-and-paste, with quote, reserve and receipt."
 ---
 
 # Carteira USDT: saldo em stablecoin, Pix pago com ele

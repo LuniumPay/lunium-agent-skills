@@ -1,6 +1,6 @@
 ---
 name: luniumpay-pix-charge
-description: "Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser \"receber Pix em USDT\", cobrar em reais com entrega em cripto, gerar QR Pix por API, ou montar checkout Pix → stablecoin em Next.js, Express, FastAPI ou Supabase. Inclui receitas por stack e script de teste no sandbox."
+description: "Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser \"receber Pix em USDT\", cobrar em reais com entrega em cripto, gerar QR Pix por API, ou montar checkout Pix → stablecoin em Next.js, Express, FastAPI ou Supabase. Inclui receitas por stack e script de teste no sandbox. EN: Accept a Pix payment from a Brazilian customer and settle USDT/USDC to the owner wallet (or BRL balance) with LuniumPay. Use for \"accept Pix, receive USDT\", Pix QR by API, Pix → stablecoin checkout in Next.js, Express, FastAPI or Supabase. Stack recipes and sandbox smoke script included."
 ---
 
 # Cash-in: Pix entra, USDT sai

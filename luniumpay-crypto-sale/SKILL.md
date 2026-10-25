@@ -1,6 +1,6 @@
 ---
 name: luniumpay-crypto-sale
-description: "Pagar uma chave Pix ou um Pix copia e cola usando cripto (cash-out da LuniumPay) — cotação, aceite, depósito on-chain e Pix com comprovante E2E. Use quando o usuário quiser transformar USDT/USDC (ou outro ativo do catálogo) em reais numa conta Pix, ou pagar um boleto Pix com cripto."
+description: "Pagar uma chave Pix ou um Pix copia e cola usando cripto (cash-out da LuniumPay) — cotação, aceite, depósito on-chain e Pix com comprovante E2E. Use quando o usuário quiser transformar USDT/USDC (ou outro ativo do catálogo) em reais numa conta Pix, ou pagar um boleto Pix com cripto. EN: Pay a Pix key or Pix copy-and-paste code with crypto (LuniumPay cash-out): quote, accept, on-chain deposit, Pix paid with a Central Bank receipt. Use to turn USDT/USDC into BRL on a Pix account."
 ---
 
 # Cash-out: cripto entra, Pix sai

@@ -1,6 +1,6 @@
 ---
 name: luniumpay
-description: "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, ou verificar um Pix. Ponto de entrada: pitch em 30 s, árvore de decisão, roteiro de integração, regras, catálogo de erros/estados e as sub-skills. Chave de produção em 1 chamada, sem aprovação humana. (EN: Brazilian Pix ↔ stablecoin API skill hub; start here.)"
+description: "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, ou verificar um Pix. Ponto de entrada: pitch em 30 s, árvore de decisão, roteiro de integração, regras, catálogo de erros/estados e as sub-skills. Chave de produção em 1 chamada, sem aprovação humana. EN: LuniumPay skill hub for Brazilian Pix ↔ stablecoin payments by API. Use for: accept Pix and settle in USDT/USDC, Pix to crypto, BRL custody balance, pay Pix with crypto, USDT wallet, verify a Pix. Production key in one call. Start here."
 ---
 
 # LuniumPay — comece aqui
@@ -43,7 +43,9 @@ Sem carteira ou vários clientes finais → `custody`.
    como `LUNIUM_API_KEY`. Nunca em código, nunca no frontend, nunca no chat.
 3. **Diagnóstico**: `node luniumpay/scripts/doctor.mjs` lê `/keys/me`, catálogo,
    webhook e imprime o que falta. Rode de novo antes de ir para produção.
-4. **Backend**: siga a sub-skill escolhida. Receitas prontas em
+4. **Backend**: `node luniumpay/scripts/init.mjs --email <e-mail>` detecta a stack (Next.js,
+   Express, FastAPI, Supabase), grava a receita oficial no projeto sem sobrescrever nada, cria
+   a chave de sandbox no `.env` e lista os próximos passos. Depois siga a sub-skill escolhida. Receitas prontas em
    `luniumpay-pix-charge/references/` (Next.js, Express, FastAPI, Supabase Edge,
    componente React de checkout).
 5. **Webhook**: `luniumpay-webhooks`. URL via `PATCH /keys/me`, segredo em
@@ -98,6 +100,7 @@ Sem carteira ou vários clientes finais → `custody`.
 - `references/faq-dono.md` — perguntas que o dono do app faz (taxas, retenção, limites, contestação, saques).
 - `references/prompts.md` — pedidos típicos de vibe coder e o que o agente deve fazer em cada um.
 - `references/mcp.md` — usar a LuniumPay por MCP (sem chave para demo; com chave no host).
+- `scripts/init.mjs` — monta a integração no projeto (detecta a stack, grava rotas/webhook/.env.example, chave de sandbox).
 - `scripts/doctor.mjs` — diagnóstico da chave e prontidão para produção.
 
 Suporte humano: https://wa.me/27722944340 · contato@luniumpay.com ·
