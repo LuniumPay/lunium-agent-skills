@@ -15,6 +15,13 @@ qualquer agente que leia o padrão [Agent Skills](https://agentskills.io).
 npx skills add LuniumPay/lunium-agent-skills
 ```
 
+Claude Code, pelo marketplace de plugins (recebe atualizações):
+
+```text
+/plugin marketplace add LuniumPay/lunium-agent-skills
+/plugin install luniumpay@lunium-agent-skills
+```
+
 Manual: copie as pastas para o diretório de skills do agente
 (`.claude/skills/`, `.cursor/skills/`, `.codex/skills/`, `.agents/skills/`).
 

@@ -1,0 +1,21 @@
+{
+  "name": "luniumpay-crypto-sale",
+  "version": "2.1.0",
+  "description": "Pagar uma chave Pix ou um Pix copia e cola usando cripto (cash-out da LuniumPay) — cotação, aceite, depósito on-chain e Pix com comprovante E2E. Use quando o usuário quiser transformar USDT/USDC (ou o",
+  "author": {
+    "name": "LuniumPay",
+    "email": "contato@luniumpay.com",
+    "url": "https://luniumpay.com"
+  },
+  "homepage": "https://docs.luniumpay.com/skill",
+  "repository": "https://github.com/LuniumPay/lunium-agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "pix",
+    "stablecoin",
+    "usdt",
+    "brazil",
+    "payments",
+    "luniumpay"
+  ]
+}
