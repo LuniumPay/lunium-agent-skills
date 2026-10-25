@@ -1,47 +1,66 @@
 # LuniumPay Agent Skills
 
-Skills de integração da [LuniumPay](https://luniumpay.com) — Pix ⇄ stablecoin no
-Brasil — para quem programa com IA: Claude Code, Cursor, Codex, Gemini CLI,
-Antigravity e qualquer agente que leia o padrão [Agent Skills](https://agentskills.io).
+**PT** · Pix ⇄ stablecoin no Brasil, integrado pelo seu agente de IA. Instale, peça
+"quero receber Pix e cair em USDT na minha carteira" e o agente faz tudo: chave em
+uma chamada, backend, QR, webhook, sandbox, produção.
+**EN** · Brazilian Pix ↔ stablecoin payments, integrated by your coding agent.
+Install, ask "accept Pix and settle in USDT to my wallet", and the agent does the rest.
 
-Instale, peça "quero receber Pix e cair em USDT na minha carteira" e o agente
-integra sozinho: chave em uma chamada, backend, QR, webhook, sandbox, produção.
+Funciona em Claude Code, Cursor, Codex, Gemini CLI, Windsurf, Antigravity e em
+qualquer agente que leia o padrão [Agent Skills](https://agentskills.io).
 
-## Instalar
+## Instalar / Install
 
 ```bash
 npx skills add guilhermezanqueta-collab/lunium-agent-skills
 ```
 
-ou copie as pastas para o diretório de skills do seu agente
-(`.claude/skills/`, `.cursor/skills/`, `.codex/skills/` ou equivalente).
+Manual: copie as pastas para o diretório de skills do agente
+(`.claude/skills/`, `.cursor/skills/`, `.codex/skills/`, `.agents/skills/`).
 
-## Skills
+## O que vem / What's inside
 
-| Skill | Quando o agente usa |
-|---|---|
-| `luniumpay` | Comece aqui: roteiro de integração + regras que não se negociam |
-| `luniumpay-pix-charge` | Receber Pix e liquidar em USDT/USDC ou saldo em reais, com receitas Next.js, Express, FastAPI e Supabase |
-| `luniumpay-webhooks` | Receber e validar webhooks assinados (verificador + teste) |
-| `luniumpay-crypto-sale` | Pagar Pix com cripto (cash-out) |
-| `luniumpay-verify-payment` | Provar que um Pix liquidou, sem chave |
+| Skill | Use quando… | Extras |
+|---|---|---|
+| `luniumpay` | **Comece aqui.** Pitch, árvore de decisão, roteiro de 7 passos, 11 regras | `references/` estados, erros, checklist de produção, FAQ do dono, prompts, MCP · `scripts/doctor.mjs` |
+| `luniumpay-pix-charge` | Receber Pix → USDT/USDC na carteira (ou saldo) | receitas Next.js, Express, FastAPI, Supabase Edge, componente React de checkout · `scripts/smoke.mjs` |
+| `luniumpay-custody` | Saldo em reais sem carteira, subcontas, saque em cripto, Pix com saldo | `scripts/smoke-custody.mjs` |
+| `luniumpay-webhooks` | Receber eventos assinados com segurança | verificador oficial + teste |
+| `luniumpay-crypto-sale` | Pagar Pix com cripto (cash-out) | |
+| `luniumpay-usdt-wallet` | Saldo em USDT e Pix pago com ele (chave ou copia e cola) | |
+| `luniumpay-verify-payment` | Provar que um Pix liquidou, sem chave | |
 
-## Testar sem dinheiro
+## Testar sem dinheiro / Try with no money
 
 ```bash
-LUNIUM_SANDBOX_EMAIL=voce@empresa.com node luniumpay-pix-charge/scripts/smoke.mjs cripto success
+export LUNIUM_SANDBOX_EMAIL=voce@empresa.com     # recebe 1 e-mail com o manual
+node luniumpay/scripts/doctor.mjs                 # diagnóstico da chave (após criar)
+node luniumpay-pix-charge/scripts/smoke.mjs cripto success
+node luniumpay-pix-charge/scripts/smoke.mjs cripto failed
+node luniumpay-custody/scripts/smoke-custody.mjs
 node luniumpay-webhooks/scripts/verify-webhook.test.mjs
 ```
 
-O script cria uma chave de teste (`lun_test_`), cobra, simula o Pix e lê o estado
-final. Recusa chaves de produção. Cenários: `success`, `failed`, `held`,
-`payer_mismatch`, `settlement_uncertain`... (lista em `GET /sandbox`).
+Os scripts criam uma chave de teste (`lun_test_`), cobram, simulam o Pix e leem o
+estado final. Recusam chaves de produção. Nenhum dinheiro real se move.
 
-## Fonte de verdade
+## Produção em uma chamada / Production key in one call
 
-Os SKILL.md são curtos de propósito. O contrato vivo manda:
-`https://docs.luniumpay.com/openapi.json` (OpenAPI 3.1),
-`https://docs.luniumpay.com/llms.txt`, `https://docs.luniumpay.com/integration.json`,
-MCP em `https://api.luniumpay.com/mcp`. Revisão: 2026-10-24, API 1.45.2.
+```bash
+curl -X POST https://api.luniumpay.com/keys -H 'Content-Type: application/json' \
+  -d '{"name":"Minha Empresa","email":"voce@empresa.com"}'
+```
+Devolve `lun_live_…` na hora, sem aprovação. Mesmo contrato do sandbox: troque só a
+variável de ambiente.
 
-Suporte: contato@luniumpay.com · https://wa.me/27722944340 · [Lunium Partners](https://t.me/+FerOZMRRP_g5MDk5)
+## Fonte de verdade / Source of truth
+
+SKILL.md são curtos de propósito. O contrato vivo manda:
+[openapi.json](https://docs.luniumpay.com/openapi.json) · [llms.txt](https://docs.luniumpay.com/llms.txt) ·
+[integration.json](https://docs.luniumpay.com/integration.json) · [sandbox](https://docs.luniumpay.com/sandbox) ·
+MCP `https://api.luniumpay.com/mcp`. Revisão 2026-10-24 · API 1.45.2.
+
+Suporte: contato@luniumpay.com · https://wa.me/27722944340 · [Lunium Partners (Telegram)](https://t.me/+FerOZMRRP_g5MDk5)
+
+## Licença
+MIT.
