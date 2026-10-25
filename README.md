@@ -12,7 +12,7 @@ qualquer agente que leia o padrão [Agent Skills](https://agentskills.io).
 ## Instalar / Install
 
 ```bash
-npx skills add guilhermezanqueta-collab/lunium-agent-skills
+npx skills add LuniumPay/lunium-agent-skills
 ```
 
 Manual: copie as pastas para o diretório de skills do agente
