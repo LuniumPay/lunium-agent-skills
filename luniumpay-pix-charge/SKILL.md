@@ -1,29 +1,92 @@
 ---
 name: luniumpay-pix-charge
-description: Receber um PIX de um pagador brasileiro e liquidar em stablecoin (cash-in da Lunium). Use quando o usuário quiser cobrar em reais e receber USDT/USDC/DePix, gerar QR code PIX programaticamente, ou montar checkout PIX→cripto.
+description: Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser "receber Pix em USDT", cobrar em reais com entrega em cripto, gerar QR Pix por API, ou montar checkout Pix → stablecoin em Next.js, Express, FastAPI ou Supabase. Inclui receitas por stack e script de teste no sandbox.
 ---
 
-# Cash-in: PIX entra, stablecoin sai
+# Cash-in: Pix entra, USDT sai
 
-## Fluxo
+Base: `https://api.luniumpay.com`. Header `X-API-Key: <LUNIUM_API_KEY>` em todas as
+chamadas. Chave de teste: `POST /keys/sandbox` com `{"email": "<e-mail de quem testa>"}`
+(obrigatório). Chave de produção: `POST /keys` com `{"name": "<negócio>", "email": "<e-mail>"}`.
 
-1. `POST /keys/sandbox` → chave `lun_test_` (desenvolva sem conta).
-2. `POST /cashin/charge` com `amount_cents` (INTEIRO, centavos), `chain`
-   (ex.: "polygon"), `asset` ("usdt" | "usdc" | "depix"), `payout_address`
-   (recebe a stablecoin após o PIX ser pago) e **`external_id` seu**.
-3. Mostre `qr_copypaste` ao pagador. A cobrança expira — leia `expires_at`.
-4. Acompanhe `GET /cashin/{id}/status` **ou** receba o webhook assinado.
-5. Estados terminam em pago+liquidado; o comprovante carrega o E2E do Bacen.
+## Decisão inicial: destino
 
-## Armadilhas que derrubam integrações
+- `destino: "cripto"` → USDT/USDC entregue na `payout_address` em cada cobrança
+  (ou na `settlement_address` da chave, se configurada). Exige `asset` e `chain`
+  presentes em `GET /cashin/catalog` com `entregavel: true`.
+- `destino: "saldo"` → crédito em reais na custódia, sem carteira. Dono saca
+  depois (`POST /saldo/sacar-cripto`) ou paga Pix com o saldo. Use quando o dono
+  não tem carteira ou quer agrupar saques. `customer_ref` separa subcontas.
 
-- **Escada do pagador**: CPF estreante ≈ R$ 60 no primeiro PIX
-  (`erro=limite_do_pagador` quando estoura → siga o `agent_guidance`: valor
-  menor agora, teto sobe com o histórico).
-- `payer_tax_number` só números (11 = CPF, 14 = CNPJ).
-- Retry sempre com o MESMO `external_id`.
-- No sandbox, os centavos escolhem o desfecho (.02 falha, .08 estoura a
-  escada anti-fraude…) — exercite os dois caminhos antes de entregar.
+## Sequência (sempre nesta ordem)
 
-Limites vigentes: `GET /cashin/limits` (com chave). Preview sem criar:
-`POST /cashin/preview`.
+1. `GET /keys/me` → capacidades, taxas, `nivel_conta`, webhook configurado?
+2. `GET /cashin/catalog` → escolha `asset` + `network` (vai no campo **`chain`**).
+   Confira `withdrawMin`, `minBuyAmount`, `memoRequired` (redes como XRP/TON
+   exigem `payout_tag`).
+3. `POST /cashin/preview` `{"amount_cents": 10000, "destino": "cripto",
+   "asset": "USDT", "chain": "polygon"}` → `net_cents`, `asset_amount`
+   (estimativa), `min_brl_cents`, `fee_total_cents`. Mostre como estimativa.
+4. Persista seu `external_id` (≤ 64 chars, único por intenção) **antes** de criar.
+5. `POST /cashin/charge`:
+   ```json
+   {
+     "amount_cents": 10000,
+     "payer_tax_number": "<CPF/CNPJ do pagador, só dígitos>",
+     "destino": "cripto",
+     "asset": "USDT",
+     "chain": "polygon",
+     "payout_address": "<carteira confirmada pelo dono>",
+     "external_id": "pedido-4812",
+     "customer_ref": "cliente-42"
+   }
+   ```
+   Resposta: `cashin_id`, `status: "pending"`, `qr_copypaste`, `qr_image_url`,
+   `expires_at`, `net_cents`, `hold_hours`.
+6. Frontend mostra `qr_image_url` + `qr_copypaste` + valor + validade. Nada gerado
+   localmente.
+7. Acompanhe por webhook (`cashin.paid`, `cashin.settled`, `cashin.held`,
+   `cashin.failed`, `cashin.refunded`, `cashin.expired`) e confirme por
+   `GET /cashin/{cashin_id}/status`. Polling: a cada 5 s até `expires_at`.
+
+## Leitura do status (três eixos independentes)
+
+| Campo | Valores | Significado |
+|---|---|---|
+| `status` | pending, delayed, under_review, paid, expired, refunded, failed | O Pix em si |
+| `settlement_status` | pending, sending, entregando, sent, incerto, failed | A entrega/crédito |
+| `settlement_proof` | none, broadcast, confirmed, reported, simulated | Evidência da entrega |
+
+- Libere o pedido quando `status=paid` **e** `settlement_status=sent` (ou, para
+  saldo, quando o crédito aparecer em `GET /saldo`). Para rastro on-chain use
+  `settlement_tx_hash` / `settlement_tx_url` e `settlement_proof=confirmed`.
+- `held: true` / `hold_hours > 0`: retenção automática por faixa do pagador.
+  Mostre `liberar_em`. Não peça outro Pix.
+- `settlement_status=incerto`: estado de conciliação. Mostre e aguarde; nunca
+  repita a cobrança nem anuncie entrega.
+- `e2e` é o identificador do Banco Central: qualquer um prova o Pix em
+  `GET /v1/verificar/{e2e}` sem chave.
+
+## Armadilhas
+
+- `payer_tax_number` inválido → `erro=documento_invalido`, `acao=corrigir`.
+- Pagador estreante tem teto baixo: `erro=limite_do_pagador` → ofereça valor
+  menor; o teto sobe com o histórico. Não divida a compra em vários Pix para
+  contornar.
+- `external_id` reaproveitado com corpo diferente → `external_id_divergente`.
+  Crie um id novo para uma intenção nova.
+- Taxa fixa por Pix e percentual vêm da conta (`GET /keys/me`, prévia). Não os
+  grave no código.
+- Sandbox: `qr_copypaste` vem como `SANDBOX:NAO_PAGAVEL:...`; pague só com
+  `POST /sandbox/cashin/{id}/pay`. Cenários: `"sandbox_scenario": "success" |
+  "delayed" | "held" | "expired" | "refunded" | "failed" | "payer_mismatch" |
+  "settlement_failed" | "settlement_uncertain" | "route_unavailable" |
+  "provider_unavailable"`. Omita em produção.
+
+## Receitas prontas
+
+- `references/nextjs.md` — App Router: rota de cobrança, rota de status, webhook com corpo cru.
+- `references/express.md` — Node/Express com `express.raw` no webhook.
+- `references/fastapi.md` — Python/FastAPI com httpx.
+- `references/supabase-edge.md` — Edge Function Deno + tabela `pedidos`.
+- `scripts/smoke.mjs` — prova ponta a ponta no sandbox (recusa `lun_live_`).
