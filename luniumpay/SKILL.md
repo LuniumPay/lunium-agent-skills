@@ -1,6 +1,10 @@
 ---
 name: luniumpay
 description: "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, ou verificar um Pix. Ponto de entrada: pitch em 30 s, árvore de decisão, roteiro de integração, regras, catálogo de erros/estados e as sub-skills. Chave de produção em 1 chamada, sem aprovação humana. EN: LuniumPay skill hub for Brazilian Pix ↔ stablecoin payments by API. Use for: accept Pix and settle in USDT/USDC, Pix to crypto, BRL custody balance, pay Pix with crypto, USDT wallet, verify a Pix. Production key in one call. Start here."
+license: MIT
+metadata:
+  version: "2.2.0"
+  api: "1.45.2"
 ---
 
 # LuniumPay — comece aqui
@@ -45,17 +49,21 @@ Sem carteira ou vários clientes finais → `custody`.
    webhook e imprime o que falta. Rode de novo antes de ir para produção.
 4. **Backend**: `node luniumpay/scripts/init.mjs --email <e-mail>` detecta a stack (Next.js,
    Express, FastAPI, Supabase), grava a receita oficial no projeto sem sobrescrever nada, cria
-   a chave de sandbox no `.env` e lista os próximos passos. Depois siga a sub-skill escolhida. Receitas prontas em
-   `luniumpay-pix-charge/references/` (Next.js, Express, FastAPI, Supabase Edge,
-   componente React de checkout).
+   a chave de sandbox no `.env` e lista os próximos passos. `LUNIUM_DESTINO=saldo` dispensa
+   carteira; `cripto` exige `LUNIUM_PAYOUT_ADDRESS`. Receitas em `luniumpay-pix-charge/references/`
+   (Next.js, Express, FastAPI, Supabase Edge, componente React de checkout), todas validando o
+   dígito do CPF/CNPJ antes de chamar.
 5. **Webhook**: `luniumpay-webhooks`. URL via `PATCH /keys/me`, segredo em
    `LUNIUM_WEBHOOK_SECRET`, assinatura validada, `event_id` deduplicado,
    status relido antes de liberar.
 6. **Prove no sandbox**: `node luniumpay-pix-charge/scripts/smoke.mjs cripto success`
    e pelo menos um cenário ruim (`failed`, `payer_mismatch`, `settlement_uncertain`).
-7. **Produção**: `POST /keys` `{"name": "<negócio>", "email": "<e-mail>"}` →
-   `lun_live_…` na hora, sem aprovação. Troque só a variável. Mesmo contrato,
-   mesmos estados. Primeira cobrança real pequena (ex. R$ 5,00) e leia o status.
+7. **Produção**: faça o deploy (precisa existir a URL https) e rode
+   `node luniumpay/scripts/go-live.mjs --name "<negócio>" --email <e-mail> --webhook https://<dominio>/api/webhooks/lunium [--vercel]`:
+   `POST /keys` devolve `lun_live_…` na hora, sem aprovação; o script cadastra o webhook, grava
+   os segredos no host (nunca imprime) e prova a entrega com `POST /webhooks/test`. Mesmo
+   contrato, mesmos estados. Primeira cobrança real pequena (ex. R$ 5,00) paga pelo dono e
+   acompanhada até `sent`. Guia por stack: `references/producao.md`.
 
 ## Regras que não se negociam
 
@@ -68,7 +76,9 @@ Sem carteira ou vários clientes finais → `custody`.
    Cash-out e carteira USDT em decimais string (`"amount": "25.5"`). Rede: campo
    `chain` no cash-in/saque, `network` no cash-out.
 4. **`payer_tax_number` é do PAGADOR** (CPF 11 / CNPJ 14, só dígitos) e é
-   obrigatório na cobrança. Pagador novo tem teto baixo que sobe com o
+   obrigatório na cobrança. **Valide o dígito verificador no app** (função
+   `documentoValido` das receitas): a API aceita documento mal digitado e o Pix volta por
+   divergência de pagador. Pagador novo tem teto baixo que sobe com o
    histórico (`GET /cashin/limits?payer_tax=`); `erro=limite_do_pagador` →
    ofereça valor menor. Nunca fracione para contornar.
 5. **Todo erro traz `erro`, `acao`, `detail`, `agent_guidance`.** `acao` ∈
@@ -92,6 +102,27 @@ Sem carteira ou vários clientes finais → `custody`.
     Não escreva "sem KYC", "anônimo", "sem burocracia", "instantâneo", e não
     cite corretoras, bancos ou provedores por trás da LuniumPay.
 
+## Sandbox: o que simula e o que não
+
+- Simula: cash-in (destino `cripto` e `saldo`), carência do saldo (cenário `held`, só saldo),
+  payout, saque em cripto, cash-out USDT/polygon e DEPIX/liquid (depósito "chega" sozinho após
+  o aceite), webhooks reais para URL pública, erros com o mesmo formato da produção.
+- Não simula: escada por pagador (`limite_do_pagador` e `held` por faixa só em produção;
+  teto fixo de R$ 6.000), crédito de depósito na carteira USDT (pagamento devolve
+  `saldo_insuficiente`), tokens DEX, Pix real.
+- Controles: `POST /sandbox/cashin/{id}/pay` paga; `POST /sandbox/operations/{id}/resolve`
+  `{"outcome": "sent"|"failed"}` fecha um `incerto` (cash-in: id = `cashin_id`; cash-out: só DePix);
+  `GET /sandbox/events` mostra o que seria enviado por webhook; `POST /sandbox/reset`
+  `{"confirm": true}` limpa; `GET /sandbox` lista cenários por fluxo. Cenário fora do fluxo → 400
+  `cenario_invalido`; `sandbox_scenario` com chave de produção → 403 `sandbox_only`.
+
+## Outras rotas (fora das sub-skills)
+
+`GET /ping` saúde · `POST /leads` fala com um humano (preço por volume, contrato; só com e-mail
+que a pessoa deu para isso) · `GET /pix/keys/lookup` titular de chave Pix quando disponível
+(`verified=false` não é erro nem bloqueia) · Mesh (`GET /mesh`, 14 rotas) é a rede de agentes
+autônomos com credencial própria, fora desta skill: siga as ações que `GET /mesh` devolve.
+
 ## Referências desta skill
 
 - `references/estados.md` — todos os estados de cash-in, cash-out, payout, saque, carteira; quando liberar.
@@ -99,9 +130,13 @@ Sem carteira ou vários clientes finais → `custody`.
 - `references/checklist-producao.md` — gate antes de ligar `lun_live_`.
 - `references/faq-dono.md` — perguntas que o dono do app faz (taxas, retenção, limites, contestação, saques).
 - `references/prompts.md` — pedidos típicos de vibe coder e o que o agente deve fazer em cada um.
-- `references/mcp.md` — usar a LuniumPay por MCP (sem chave para demo; com chave no host).
+- `references/mcp.md` — usar a LuniumPay por MCP: 8 tools públicas, 12 com chave, o que fica só na REST.
+- `references/producao.md` — deploy por stack, variáveis, URL do webhook, go-live, primeira cobrança, operação, rotação de segredos.
 - `scripts/init.mjs` — monta a integração no projeto (detecta a stack, grava rotas/webhook/.env.example, chave de sandbox).
 - `scripts/doctor.mjs` — diagnóstico da chave e prontidão para produção.
+- `scripts/go-live.mjs` — chave de produção, webhook, segredos no host (Vercel ou arquivo 0600), entrega de teste provada.
+- Provas no sandbox: `luniumpay-pix-charge/scripts/smoke.mjs`, `luniumpay-custody/scripts/smoke-custody.mjs`,
+  `luniumpay-crypto-sale/scripts/smoke-cashout.mjs`, `luniumpay-webhooks/scripts/verify-webhook.test.mjs`.
 
 Suporte humano: https://wa.me/27722944340 · contato@luniumpay.com ·
 comunidade Lunium Partners (Telegram): https://t.me/+FerOZMRRP_g5MDk5 (recomendada).

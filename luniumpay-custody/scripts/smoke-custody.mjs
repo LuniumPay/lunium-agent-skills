@@ -16,6 +16,15 @@ let s; for (let i = 0; i < 10; i++) { s = await call(`/cashin/${c.cashin_id}/sta
 console.log('status:', s.status, '/', s.settlement_status);
 let saldo = await call(`/saldo?customer_ref=${ref}`); console.log('saldo subconta:', saldo.disponivel_cents, 'disponível,', saldo.bloqueado_cents, 'bloqueado');
 
+// Carência (cenário held): o crédito entra bloqueado, com data de liberação. Não é falha; não peça outro Pix.
+const refH = `${ref}-held`;
+const h = await call('/cashin/charge', { method: 'POST', body: JSON.stringify({ amount_cents: 10000, payer_tax_number: '12345678909', destino: 'saldo', customer_ref: refH, external_id: `held-${tag}`, sandbox_scenario: 'held' }) });
+await call(`/sandbox/cashin/${h.cashin_id}/pay`, { method: 'POST', body: '{}' });
+let hs; for (let i = 0; i < 10; i++) { hs = await call(`/cashin/${h.cashin_id}/status`); if (hs.settlement_status === 'sent') break; await sleep(3000); }
+const sh = await call(`/saldo?customer_ref=${refH}`);
+const lib = sh.proximas_liberacoes?.[0];
+console.log(`carência (held): ${sh.bloqueado_cents} bloqueado, ${sh.disponivel_cents} disponível, em_carencia=${sh.em_carencia}, libera em ${lib?.disponivel_em || '-'}`, sh.bloqueado_cents > 0 ? '→ RETENÇÃO VISÍVEL' : '→ ATENÇÃO: nada bloqueado');
+
 const tr = await call('/saldo/transferir', { method: 'POST', body: JSON.stringify({ from_customer_ref: ref, to_customer_ref: 'casa', amount_cents: 1000, descricao: 'smoke', external_id: `tr-${tag}` }) });
 console.log('transferência → casa:', JSON.stringify(tr).slice(0, 160));
 

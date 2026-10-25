@@ -31,7 +31,12 @@ Toda resposta de erro tem o mesmo corpo:
 | `saldo_insuficiente` | saldo livre menor que valor + taxa | ler `GET /saldo` (`disponivel_cents`, `bloqueado_cents`) e orientar |
 | `rota_indisponivel` / `route_unavailable` | par ativo/rede fora do catálogo agora | reler `/cashin/catalog` ou `/catalog` e oferecer alternativa |
 | `nao_encontrado` em `/v1/verificar` | a LuniumPay não liquidou esse E2E | resposta válida, não falha |
+| `memo_obrigatorio` (400) | rede coletiva (XRP, XLM, TON, ATOM, HBAR, ALGO…) sem `payout_tag`/`deposit_tag` | pedir o memo/tag ao dono; não criar sem ele |
+| `cenario_invalido` (400) | `sandbox_scenario` que não existe neste fluxo | ver `GET /sandbox` → `scenarios_by_flow` |
+| `sandbox_only` (403) | `sandbox_scenario` ou rota `/sandbox/*` com chave de produção | remover o campo; receitas só o enviam com `lun_test_` |
 | 429 | cota por chave/IP | respeitar `Retry-After`; sem laço apertado |
+
+Erros autocorrigíveis trazem também `campo`, `missing[]` e `next_actions[]` (ex.: `POST /keys/sandbox` sem `email`).
 
 Regra geral: leia `agent_guidance` e faça exatamente aquilo. Se o código não estiver
 aqui, o `detail` explica e `docs` aponta a página.

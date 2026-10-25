@@ -7,7 +7,7 @@ biblioteca de QR: a imagem vem pronta da LuniumPay (`qr_image_url`).
 'use client';
 import { useEffect, useState } from 'react';
 
-type Cobranca = { cashinId: string; qrImageUrl: string; qrCopyPaste: string; amountCents: number; expiresAt: string };
+export type Cobranca = { cashinId: string; qrImageUrl: string; qrCopyPaste: string; amountCents: number; expiresAt: string };
 type Status = { status: string; settlement: string | null; proof: string | null; liberado: boolean; txUrl?: string | null; liberarEm?: string | null };
 
 const brl = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -76,3 +76,47 @@ export function CheckoutPix({ cobranca }: { cobranca: Cobranca }) {
 Regras embutidas: imagem e código vêm da API; nada é gerado no cliente. "Liberado"
 só quando o backend diz `liberado` (status `paid` + `settlement_status` `sent`).
 Estados intermediários falam a verdade sem prometer prazo. Sem "instantâneo".
+
+Página pronta (`app/pagar/page.tsx`): valor + CPF/CNPJ → `POST /api/cobranca` → checkout.
+`init.mjs` grava as duas; ajuste o visual à vontade, mantenha as regras.
+
+```tsx
+'use client';
+import { useState, type FormEvent } from 'react';
+import { CheckoutPix, type Cobranca } from '@/components/CheckoutPix';
+
+export default function PagarPage() {
+  const [valor, setValor] = useState('5,00');
+  const [doc, setDoc] = useState('');
+  const [cobranca, setCobranca] = useState<Cobranca | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  async function criar(e: FormEvent) {
+    e.preventDefault(); setErro(null); setCarregando(true);
+    const amountCents = Math.round(Number(valor.replace(/\./g, '').replace(',', '.')) * 100);
+    const pedidoId = `web-${Date.now()}`;   // no seu app: id do pedido já gravado no banco (idempotência)
+    const r = await fetch('/api/cobranca', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidoId, amountCents, payerTaxNumber: doc }) });
+    const b = await r.json(); setCarregando(false);
+    if (!r.ok) { setErro(b.detail || b.erro || 'Não foi possível gerar o Pix.'); return; }
+    setCobranca(b);
+  }
+
+  return (
+    <main style={{ maxWidth: 480, margin: '40px auto', padding: 16 }}>
+      {cobranca ? <CheckoutPix cobranca={cobranca} /> : (
+        <>
+          <h1>Pagar com Pix</h1>
+          <form onSubmit={criar}>
+            <label>Valor (R$)<br /><input value={valor} onChange={e => setValor(e.target.value)} inputMode="decimal" required /></label><br />
+            <label>CPF ou CNPJ de quem paga<br /><input value={doc} onChange={e => setDoc(e.target.value)} inputMode="numeric" required /></label><br />
+            <button type="submit" disabled={carregando}>{carregando ? 'Gerando…' : 'Gerar Pix'}</button>
+          </form>
+          {erro && <p role="alert">{erro}</p>}
+          <p style={{ fontSize: 12, opacity: 0.7 }}>Pix com liquidação em stablecoin pela LuniumPay. O CPF/CNPJ serve para limites e proteção contra fraude.</p>
+        </>
+      )}
+    </main>
+  );
+}
+```

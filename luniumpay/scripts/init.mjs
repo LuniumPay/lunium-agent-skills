@@ -30,7 +30,7 @@ if (!stack) { console.error('Não detectei a stack. Use --stack next|express|fas
 
 const blocks = (file) => [...readFileSync(join(refs, file), 'utf8').matchAll(/```[a-z]*\n([\s\S]*?)```/g)].map(m => m[1]);
 const PLANS = {
-  next:     { ref: 'nextjs.md',        env: '.env.local', files: [[1, 'lib/lunium.ts'], [2, 'app/api/cobranca/route.ts'], [3, 'app/api/cobranca/[id]/route.ts'], [4, 'app/api/webhooks/lunium/route.ts']], extra: [['checkout-react.md', 0, 'components/CheckoutPix.tsx']] },
+  next:     { ref: 'nextjs.md',        env: '.env.local', files: [[1, 'lib/lunium.ts'], [2, 'app/api/cobranca/route.ts'], [3, 'app/api/cobranca/[id]/route.ts'], [4, 'app/api/webhooks/lunium/route.ts']], extra: [['checkout-react.md', 0, 'components/CheckoutPix.tsx'], ['checkout-react.md', 1, 'app/pagar/page.tsx']] },
   express:  { ref: 'express.md',       env: '.env',       files: [[0, 'lunium-server.mjs']] },
   fastapi:  { ref: 'fastapi.md',       env: '.env',       files: [[0, 'lunium_api.py']] },
   supabase: { ref: 'supabase-edge.md', env: '.env',       files: [[0, 'supabase/migrations/20261024000000_lunium.sql'], [1, 'supabase/functions/lunium-cobranca/index.ts'], [2, 'supabase/functions/lunium-webhook/index.ts']] },
@@ -43,8 +43,9 @@ if (out.some(o => !o.code)) { console.error('Receita incompleta em references/. 
 
 const ENV_EXAMPLE = `# LuniumPay — copie para ${plan.env} e preencha. Nunca commite o arquivo preenchido.
 LUNIUM_API_KEY=lun_test_...          # sandbox: POST https://api.luniumpay.com/keys/sandbox {"email": "..."}; produção: POST /keys → lun_live_
-LUNIUM_WEBHOOK_SECRET=               # devolvido por PATCH /keys/me {"webhook_url": "https://seu-app/webhooks/lunium"}
-LUNIUM_PAYOUT_ADDRESS=0x...          # carteira do dono (destino=cripto); omita se usar destino=saldo
+LUNIUM_WEBHOOK_SECRET=               # devolvido por PATCH /keys/me {"webhook_url": "https://seu-app/webhooks/lunium"} (go-live.mjs faz isso)
+LUNIUM_DESTINO=saldo                 # saldo = custódia em reais, sem carteira · cripto = USDT direto na carteira abaixo
+LUNIUM_PAYOUT_ADDRESS=0x...          # carteira do dono (só destino=cripto)
 LUNIUM_CHAIN=polygon                 # rede da rota escolhida em GET /cashin/catalog
 `;
 log(`LuniumPay init · stack: ${stack} · pasta: ${dir}${args.dry ? ' · DRY RUN' : ''}\n`);
@@ -75,9 +76,10 @@ if (args.email && typeof args.email === 'string') {
 }
 log(`
 Próximos passos
-1. Preencha ${plan.env} (LUNIUM_PAYOUT_ADDRESS, LUNIUM_CHAIN; LUNIUM_WEBHOOK_SECRET após cadastrar o webhook).
+1. Preencha ${plan.env}: LUNIUM_DESTINO=saldo (sem carteira) ou cripto + LUNIUM_PAYOUT_ADDRESS e LUNIUM_CHAIN.
 2. Diagnóstico:  LUNIUM_API_KEY=... node luniumpay/scripts/doctor.mjs
 3. Prova:        LUNIUM_API_KEY=... node luniumpay-pix-charge/scripts/smoke.mjs cripto success
-4. Webhook:      PATCH /keys/me {"webhook_url": "https://seu-app/webhooks/lunium"} → guarde webhook_secret → POST /webhooks/test
-5. Produção:     POST https://api.luniumpay.com/keys {"name": "...", "email": "..."} → troque LUNIUM_API_KEY. Checklist: luniumpay/references/checklist-producao.md
-${stack === 'next' ? 'Frontend: importe components/CheckoutPix.tsx e passe o retorno de POST /api/cobranca.' : ''}`);
+4. Deploy:       publique o app (precisa de URL https). Guia por stack: luniumpay/references/producao.md
+5. Produção:     node luniumpay/scripts/go-live.mjs --name "<negócio>" --email <e-mail> --webhook https://<dominio>${stack === 'next' ? '/api/webhooks/lunium' : stack === 'supabase' ? '/functions/v1/lunium-webhook' : '/webhooks/lunium'}${stack === 'next' ? ' --vercel --deploy' : ' --env .env.lunium.production'}
+                 (chave lun_live_, webhook + segredo, variáveis no host, teste de entrega). Depois: luniumpay/references/checklist-producao.md
+${stack === 'next' ? 'Frontend: /pagar já está pronto (app/pagar/page.tsx usa components/CheckoutPix.tsx).' : ''}`);

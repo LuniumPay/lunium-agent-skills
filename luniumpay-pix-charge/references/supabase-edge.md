@@ -1,6 +1,6 @@
 # Supabase Edge Function (Deno) — receber Pix e cair em USDT
 
-Segredos: `supabase secrets set LUNIUM_API_KEY=lun_test_... LUNIUM_WEBHOOK_SECRET=... LUNIUM_PAYOUT_ADDRESS=0x...`
+Segredos: `supabase secrets set LUNIUM_API_KEY=lun_test_... LUNIUM_WEBHOOK_SECRET=... LUNIUM_DESTINO=cripto LUNIUM_PAYOUT_ADDRESS=0x...` (sem carteira: `LUNIUM_DESTINO=saldo`)
 
 Tabela sugerida:
 ```sql
@@ -21,16 +21,27 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const BASE = 'https://api.luniumpay.com';
 const KEY = Deno.env.get('LUNIUM_API_KEY')!;
 const H = { 'X-API-Key': KEY, 'Content-Type': 'application/json' };
+const destino = Deno.env.get('LUNIUM_DESTINO') ?? (Deno.env.get('LUNIUM_PAYOUT_ADDRESS') ? 'cripto' : 'saldo');
+// CPF/CNPJ com dígito verificador: a API não valida o DV; documento errado vira Pix devolvido.
+function documentoValido(doc: string): boolean {
+  const d = String(doc).replace(/\D/g, '');
+  if (/^(\d)\1+$/.test(d)) return false;
+  const dv = (base: string, pesos: number[]) => { const r = [...base].reduce((a, n, i) => a + Number(n) * pesos[i], 0) % 11; return r < 2 ? 0 : 11 - r; };
+  if (d.length === 11) return dv(d.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[9]) && dv(d.slice(0, 10), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[10]);
+  if (d.length === 14) return dv(d.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12]) && dv(d.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
+  return false;
+}
 
 Deno.serve(async (req) => {
   const { pedidoId, amountCents, payerTaxNumber } = await req.json();
+  if (!documentoValido(payerTaxNumber)) return Response.json({ erro: 'documento_invalido', acao: 'corrigir', detail: 'CPF/CNPJ do pagador inválido' }, { status: 400 });
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   await db.from('pedidos').upsert({ id: pedidoId, amount_cents: amountCents });   // antes de cobrar
   const r = await fetch(BASE + '/cashin/charge', { method: 'POST', headers: H, body: JSON.stringify({
     amount_cents: amountCents,
     payer_tax_number: String(payerTaxNumber).replace(/\D/g, ''),
-    destino: 'cripto', asset: 'USDT', chain: Deno.env.get('LUNIUM_CHAIN') ?? 'polygon',
-    payout_address: Deno.env.get('LUNIUM_PAYOUT_ADDRESS'),
+    destino,
+    ...(destino === 'cripto' ? { asset: 'USDT', chain: Deno.env.get('LUNIUM_CHAIN') ?? 'polygon', payout_address: Deno.env.get('LUNIUM_PAYOUT_ADDRESS') } : {}),
     external_id: `pedido-${pedidoId}`,
     ...(KEY.startsWith('lun_test_') ? { sandbox_scenario: 'success' } : {}),
   }) });

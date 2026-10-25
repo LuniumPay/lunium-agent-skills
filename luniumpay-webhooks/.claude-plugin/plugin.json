@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-webhooks",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Receber webhooks da LuniumPay com segurança — cadastrar a URL, validar a assinatura HMAC X-Lunium-Signature sobre o corpo cru, deduplicar por event_id, responder rápido e auditar entregas. Use ao impl",
   "author": {
     "name": "LuniumPay",

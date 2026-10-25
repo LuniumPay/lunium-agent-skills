@@ -1,6 +1,6 @@
 {
   "name": "luniumpay",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com s",
   "author": {
     "name": "LuniumPay",

@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-pix-charge",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser \"receber Pix em USDT\", cobrar em reais com entrega ",
   "author": {
     "name": "LuniumPay",

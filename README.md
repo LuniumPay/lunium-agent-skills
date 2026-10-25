@@ -29,11 +29,11 @@ Manual: copie as pastas para o diretório de skills do agente
 
 | Skill | Use quando… | Extras |
 |---|---|---|
-| `luniumpay` | **Comece aqui.** Pitch, árvore de decisão, roteiro de 7 passos, 11 regras | `references/` estados, erros, checklist de produção, FAQ do dono, prompts, MCP · `scripts/doctor.mjs` |
+| `luniumpay` | **Comece aqui.** Pitch, árvore de decisão, roteiro de 7 passos, 11 regras, o que o sandbox simula | `references/` estados, erros, checklist, FAQ do dono, prompts, MCP (20 tools), produção por stack · `scripts/init.mjs`, `doctor.mjs`, `go-live.mjs` |
 | `luniumpay-pix-charge` | Receber Pix → USDT/USDC na carteira (ou saldo) | receitas Next.js, Express, FastAPI, Supabase Edge, componente React de checkout · `scripts/smoke.mjs` |
-| `luniumpay-custody` | Saldo em reais sem carteira, subcontas, saque em cripto, Pix com saldo | `scripts/smoke-custody.mjs` |
+| `luniumpay-custody` | Saldo em reais sem carteira, subcontas, retenção/carência, saque em cripto, Pix com saldo | `scripts/smoke-custody.mjs` (inclui carência) |
 | `luniumpay-webhooks` | Receber eventos assinados com segurança | verificador oficial + teste |
-| `luniumpay-crypto-sale` | Pagar Pix com cripto (cash-out) | |
+| `luniumpay-crypto-sale` | Pagar Pix com cripto (cash-out): catálogo, prévia, ordem, aceite, devolução | `scripts/smoke-cashout.mjs` |
 | `luniumpay-usdt-wallet` | Saldo em USDT e Pix pago com ele (chave ou copia e cola) | |
 | `luniumpay-verify-payment` | Provar que um Pix liquidou, sem chave | |
 
@@ -55,27 +55,32 @@ node luniumpay/scripts/doctor.mjs                 # diagnóstico da chave (após
 node luniumpay-pix-charge/scripts/smoke.mjs cripto success
 node luniumpay-pix-charge/scripts/smoke.mjs cripto failed
 node luniumpay-custody/scripts/smoke-custody.mjs
+node luniumpay-crypto-sale/scripts/smoke-cashout.mjs USDT polygon
+node luniumpay-crypto-sale/scripts/smoke-cashout.mjs DEPIX liquid settlement_uncertain
 node luniumpay-webhooks/scripts/verify-webhook.test.mjs
 ```
 
 Os scripts criam uma chave de teste (`lun_test_`), cobram, simulam o Pix e leem o
 estado final. Recusam chaves de produção. Nenhum dinheiro real se move.
 
-## Produção em uma chamada / Production key in one call
+## Produção completa em um comando / Production in one command
 
 ```bash
-curl -X POST https://api.luniumpay.com/keys -H 'Content-Type: application/json' \
-  -d '{"name":"Minha Empresa","email":"voce@empresa.com"}'
+node luniumpay/scripts/go-live.mjs --name "Minha Empresa" --email voce@empresa.com \
+  --webhook https://seu-dominio.com/api/webhooks/lunium --vercel     # ou --env .env.lunium.production
 ```
-Devolve `lun_live_…` na hora, sem aprovação. Mesmo contrato do sandbox: troque só a
-variável de ambiente.
+Cria a chave `lun_live_…` na hora (sem aprovação), cadastra o webhook com segredo, grava os segredos
+no host (nunca imprime) e prova a entrega com `POST /webhooks/test`. Mesmo contrato do sandbox:
+só a variável muda. Deploy por stack e primeira cobrança real: `luniumpay/references/producao.md`.
+
+Só a chave, por curl: `curl -X POST https://api.luniumpay.com/keys -H 'Content-Type: application/json' -d '{"name":"Minha Empresa","email":"voce@empresa.com"}'`.
 
 ## Fonte de verdade / Source of truth
 
 SKILL.md são curtos de propósito. O contrato vivo manda:
 [openapi.json](https://docs.luniumpay.com/openapi.json) · [llms.txt](https://docs.luniumpay.com/llms.txt) ·
 [integration.json](https://docs.luniumpay.com/integration.json) · [sandbox](https://docs.luniumpay.com/sandbox) ·
-MCP `https://api.luniumpay.com/mcp`. Revisão 2026-10-24 · API 1.45.2.
+MCP `https://api.luniumpay.com/mcp`. Skills **2.2.0** · revisão 2026-10-25 · API 1.45.2.
 
 Suporte: contato@luniumpay.com · https://wa.me/27722944340 · [Lunium Partners (Telegram)](https://t.me/+FerOZMRRP_g5MDk5)
 

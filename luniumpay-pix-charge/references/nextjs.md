@@ -4,7 +4,8 @@
 ```
 LUNIUM_API_KEY=lun_test_...      # troque por lun_live_ em produção
 LUNIUM_WEBHOOK_SECRET=...        # devolvido por PATCH /keys/me ao cadastrar webhook_url
-LUNIUM_PAYOUT_ADDRESS=0x...      # carteira do dono (destino=cripto)
+LUNIUM_DESTINO=cripto            # cripto = USDT na carteira abaixo · saldo = custódia em reais, sem carteira
+LUNIUM_PAYOUT_ADDRESS=0x...      # carteira do dono (só destino=cripto)
 LUNIUM_CHAIN=polygon
 ```
 
@@ -19,15 +20,27 @@ export async function lunium<T>(path: string, init?: RequestInit): Promise<T> {
   if (!r.ok) throw Object.assign(new Error(body.detail || body.erro || 'lunium_error'), { lunium: body, status: r.status });
   return body as T;
 }
+
+export const destino = process.env.LUNIUM_DESTINO || (process.env.LUNIUM_PAYOUT_ADDRESS ? 'cripto' : 'saldo');
+// CPF (11) ou CNPJ (14) só dígitos, com dígito verificador. A API não valida o DV: documento errado vira Pix devolvido por divergência de pagador.
+export function documentoValido(doc: string): boolean {
+  const d = String(doc).replace(/\D/g, '');
+  if (/^(\d)\1+$/.test(d)) return false;
+  const dv = (base: string, pesos: number[]) => { const r = [...base].reduce((a, n, i) => a + Number(n) * pesos[i], 0) % 11; return r < 2 ? 0 : 11 - r; };
+  if (d.length === 11) return dv(d.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[9]) && dv(d.slice(0, 10), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[10]);
+  if (d.length === 14) return dv(d.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12]) && dv(d.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
+  return false;
+}
 ```
 
 `app/api/cobranca/route.ts` — cria a cobrança. `external_id` = id do pedido, gravado ANTES.
 ```ts
 import { NextResponse } from 'next/server';
-import { lunium } from '@/lib/lunium';
+import { lunium, destino, documentoValido } from '@/lib/lunium';
 
 export async function POST(req: Request) {
   const { pedidoId, amountCents, payerTaxNumber } = await req.json();
+  if (!documentoValido(payerTaxNumber)) return NextResponse.json({ erro: 'documento_invalido', acao: 'corrigir', detail: 'CPF/CNPJ do pagador inválido' }, { status: 400 });
   // 1. garanta que o pedido existe no seu banco com este id (idempotência)
   // 2. crie a cobrança reutilizando o mesmo external_id em qualquer retry
   const charge = await lunium<any>('/cashin/charge', {
@@ -35,10 +48,8 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       amount_cents: amountCents,
       payer_tax_number: payerTaxNumber.replace(/\D/g, ''),
-      destino: 'cripto',
-      asset: 'USDT',
-      chain: process.env.LUNIUM_CHAIN,
-      payout_address: process.env.LUNIUM_PAYOUT_ADDRESS,
+      destino,
+      ...(destino === 'cripto' ? { asset: 'USDT', chain: process.env.LUNIUM_CHAIN, payout_address: process.env.LUNIUM_PAYOUT_ADDRESS } : {}),
       external_id: `pedido-${pedidoId}`,
       ...(process.env.LUNIUM_API_KEY!.startsWith('lun_test_') ? { sandbox_scenario: 'success' } : {}),
     }),
@@ -63,7 +74,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   const s = await lunium<any>(`/cashin/${id}/status`);
   const liberado = s.status === 'paid' && s.settlement_status === 'sent';
-  return NextResponse.json({ status: s.status, settlement: s.settlement_status, proof: s.settlement_proof, liberado, txUrl: s.settlement_tx_url, liberarEm: s.liberar_em });
+  return NextResponse.json({ status: s.status, settlement: s.settlement_status, proof: s.settlement_proof, liberado, txUrl: s.settlement_tx_url, liberarEm: s.liberar_em, e2e: s.e2e });
 }
 ```
 

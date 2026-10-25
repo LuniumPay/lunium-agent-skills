@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-custody",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Receber Pix em saldo em reais na LuniumPay (sem carteira fixa), separar por cliente com subcontas, sacar em cripto para qualquer rede do catálogo, pagar Pix com o saldo e transferir entre subcontas. U",
   "author": {
     "name": "LuniumPay",

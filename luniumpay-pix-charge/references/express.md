@@ -7,6 +7,16 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 const BASE = 'https://api.luniumpay.com';
 const H = { 'X-API-Key': process.env.LUNIUM_API_KEY, 'Content-Type': 'application/json' };
 const isSandbox = process.env.LUNIUM_API_KEY.startsWith('lun_test_');
+const destino = process.env.LUNIUM_DESTINO || (process.env.LUNIUM_PAYOUT_ADDRESS ? 'cripto' : 'saldo');
+// CPF/CNPJ com dígito verificador: a API não valida o DV; documento errado vira Pix devolvido.
+function documentoValido(doc) {
+  const d = String(doc).replace(/\D/g, '');
+  if (/^(\d)\1+$/.test(d)) return false;
+  const dv = (base, pesos) => { const r = [...base].reduce((a, n, i) => a + Number(n) * pesos[i], 0) % 11; return r < 2 ? 0 : 11 - r; };
+  if (d.length === 11) return dv(d.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[9]) && dv(d.slice(0, 10), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[10]);
+  if (d.length === 14) return dv(d.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12]) && dv(d.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
+  return false;
+}
 const app = express();
 
 async function lunium(path, init = {}) {
@@ -34,12 +44,13 @@ app.use(express.json());
 
 app.post('/cobrancas', async (req, res) => {
   const { pedidoId, amountCents, payerTaxNumber } = req.body;
+  if (!documentoValido(payerTaxNumber)) return res.status(400).json({ erro: 'documento_invalido', acao: 'corrigir', detail: 'CPF/CNPJ do pagador inválido' });
   try {
     const c = await lunium('/cashin/charge', { method: 'POST', body: JSON.stringify({
       amount_cents: amountCents,
       payer_tax_number: String(payerTaxNumber).replace(/\D/g, ''),
-      destino: 'cripto', asset: 'USDT', chain: process.env.LUNIUM_CHAIN || 'polygon',
-      payout_address: process.env.LUNIUM_PAYOUT_ADDRESS,
+      destino,
+      ...(destino === 'cripto' ? { asset: 'USDT', chain: process.env.LUNIUM_CHAIN || 'polygon', payout_address: process.env.LUNIUM_PAYOUT_ADDRESS } : {}),
       external_id: `pedido-${pedidoId}`,
       ...(isSandbox ? { sandbox_scenario: 'success' } : {}),
     }) });

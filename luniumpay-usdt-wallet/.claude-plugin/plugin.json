@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-usdt-wallet",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Carteira USDT/USDC na LuniumPay — depositar stablecoin em várias redes, manter saldo em cripto e pagar Pix com ele por chave Pix ou Pix Copia e Cola, com cotação, reserva e comprovante. Use quando o d",
   "author": {
     "name": "LuniumPay",

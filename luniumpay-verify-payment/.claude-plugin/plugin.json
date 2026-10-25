@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-verify-payment",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Provar que um pagamento Pix brasileiro liquidou de verdade, sem chave e sem conta, a partir do identificador E2E do Banco Central. Use quando alguém alegar \"já paguei\", antes de liberar produto/acesso",
   "author": {
     "name": "LuniumPay",

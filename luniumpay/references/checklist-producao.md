@@ -8,7 +8,9 @@ Rode `node luniumpay/scripts/doctor.mjs` com a chave de produção e confira:
 - [ ] Pedido/intenção é gravado ANTES da chamada; `external_id` reutilizado no retry; timeout → consulta antes de repetir.
 - [ ] Liberação do produto depende de `status=paid` **e** `settlement_status=sent` (ou crédito em `/saldo`), nunca só do webhook `cashin.paid`.
 - [ ] Webhook: corpo cru, HMAC validado, janela de 300 s, `event_id` único no banco, 2xx rápido, processamento assíncrono, ordem fora de sequência tolerada.
-- [ ] `POST /webhooks/test` recebido e validado em produção.
+- [ ] `node luniumpay/scripts/go-live.mjs … --webhook https://<dominio>/…` rodado após o deploy: chave `lun_live_`, webhook cadastrado, segredos no host, `POST /webhooks/test` entregue com 2xx (`GET /webhooks/deliveries`).
+- [ ] `LUNIUM_DESTINO` definido (`saldo` sem carteira; `cripto` com `LUNIUM_PAYOUT_ADDRESS` confirmado).
+- [ ] CPF/CNPJ do pagador validado no app (dígito verificador) antes de criar a cobrança.
 - [ ] Taxas e mínimos lidos em runtime (`/cashin/preview`, `/keys/me`, `/saldo`); UI mostra valor em cripto como estimativa.
 - [ ] Mensagens ao pagador cobrem: aguardando, pago e em entrega, retido (com `liberar_em`), devolvido, expirado, em análise.
 - [ ] Destino cripto: `payout_address` confirmado pelo dono (rede certa, `payout_tag` quando a rede exige).

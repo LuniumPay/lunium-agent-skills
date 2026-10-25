@@ -9,7 +9,7 @@
 | `settlement_proof` | `none` · `broadcast` · `confirmed` · `reported` · `simulated` | evidência da entrega |
 
 - **Liberar produto (destino cripto):** `paid` **e** `sent`. Para rastro: `settlement_tx_hash`, `settlement_tx_url`, `proof=confirmed`.
-- **Liberar produto (destino saldo):** `paid` e `sent`; o crédito aparece em `GET /saldo` (`disponivel_cents`). Pode haver carência: `bloqueado_cents`, `proximas_liberacoes`.
+- **Liberar produto (destino saldo):** `paid` e `sent`; o crédito aparece em `GET /saldo` (`disponivel_cents`). Pode haver carência: `bloqueado_cents`, `proximas_liberacoes[]` (`valor_cents`, `disponivel_em`), `em_carencia`, `carencia_ate`; webhooks `saldo.congelado` → `saldo.liberado`. A cobrança em si pode mostrar `held: false` e mesmo assim o crédito ficar em carência: leia o saldo.
 - `held: true` / `hold_hours > 0` / `liberar_em`: retenção automática pela faixa do pagador. Não é falha. Não peça outro Pix.
 - `delayed`: provedor demorando. Espere; o estado final chega por webhook/status.
 - `under_review`: análise de risco. Espere. Não repita.
@@ -24,7 +24,7 @@
 `QUOTE_CREATED → AWAITING_DEPOSIT → DEPOSIT_DETECTED → DEPOSIT_CONFIRMED → SELLING → SOLD → FORWARDING → PAYING_OUT → COMPLETED`
 - Só `COMPLETED` conclui. `pix_e2e`, `receipt_url`, `receipt_pdf_url`, `verify_url` aparecem aí (o comprovante pode vir depois: `cashout.receipt_ready`).
 - `DELAYED`, `PROCESSING`, `PAYING_OUT`, `MANUAL_REVIEW`: em andamento. **Nenhum autoriza novo depósito.**
-- `AWAITING_REFUND_ADDRESS`: peça ao cliente a carteira confirmada na rede informada. `deposit_from` é informativo; nunca "devolver para a origem".
+- `AWAITING_REFUND_ADDRESS` (`refund_address_required: true`, `refund_network`, `refund_asset`): peça ao cliente a carteira dele nessa rede e envie `POST /cash-outs/{id}/refund-address {"refund_address"}`. `deposit_from` é informativo; nunca "devolver para a origem".
 - `REFUNDING_CRYPTO` / `REFUNDING` → `REFUNDED` (`refund_tx_hash`, ativo e valor reais da devolução). `provider_return_txid` não é devolução ao cliente.
 - `EXPIRED` (cotação venceu sem depósito) · `FAILED`.
 

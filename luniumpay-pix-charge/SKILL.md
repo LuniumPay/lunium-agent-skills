@@ -1,6 +1,10 @@
 ---
 name: luniumpay-pix-charge
 description: "Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser \"receber Pix em USDT\", cobrar em reais com entrega em cripto, gerar QR Pix por API, ou montar checkout Pix → stablecoin em Next.js, Express, FastAPI ou Supabase. Inclui receitas por stack e script de teste no sandbox. EN: Accept a Pix payment from a Brazilian customer and settle USDT/USDC to the owner wallet (or BRL balance) with LuniumPay. Use for \"accept Pix, receive USDT\", Pix QR by API, Pix → stablecoin checkout in Next.js, Express, FastAPI or Supabase. Stack recipes and sandbox smoke script included."
+license: MIT
+metadata:
+  version: "2.2.0"
+  api: "1.45.2"
 ---
 
 # Cash-in: Pix entra, USDT sai
@@ -69,7 +73,11 @@ chamadas. Chave de teste: `POST /keys/sandbox` com `{"email": "<e-mail de quem t
 
 ## Armadilhas
 
-- `payer_tax_number` inválido → `erro=documento_invalido`, `acao=corrigir`.
+- A API **não valida o dígito verificador** de `payer_tax_number`: CPF digitado errado gera QR
+  normalmente e o Pix volta como `refunded` (`refund_reason=PAYER_MISMATCH`). Valide no app
+  antes de chamar (`documentoValido` nas receitas). Formato errado → `documento_invalido`.
+- `payer_name` é opcional (só informativo). `delivery_mode` (`full`|`split`) existe só para
+  `chain: "liquid"` (DePix); ignore nas demais redes.
 - Pagador estreante tem teto baixo: `erro=limite_do_pagador` → ofereça valor
   menor; o teto sobe com o histórico. Não divida a compra em vários Pix para
   contornar.
@@ -78,13 +86,17 @@ chamadas. Chave de teste: `POST /keys/sandbox` com `{"email": "<e-mail de quem t
 - Taxa fixa por Pix e percentual vêm da conta (`GET /keys/me`, prévia). Não os
   grave no código.
 - Sandbox: `qr_copypaste` vem como `SANDBOX:NAO_PAGAVEL:...`; pague só com
-  `POST /sandbox/cashin/{id}/pay`. Cenários: `"sandbox_scenario": "success" |
-  "delayed" | "held" | "expired" | "refunded" | "failed" | "payer_mismatch" |
-  "settlement_failed" | "settlement_uncertain" | "route_unavailable" |
-  "provider_unavailable"`. Omita em produção.
+  `POST /sandbox/cashin/{id}/pay`. `sandbox_scenario` por destino — cripto: `success`,
+  `delayed`, `expired`, `refunded`, `failed`, `payer_mismatch`, `settlement_failed`,
+  `settlement_uncertain`, `route_unavailable`, `provider_unavailable`; saldo: os mesmos +
+  `held` (carência visível em `GET /saldo`). Cenário de outro fluxo → 400 `cenario_invalido`.
+  `settlement_uncertain` para em `incerto`: feche com `POST /sandbox/operations/{cashin_id}/resolve`
+  `{"outcome": "sent"}`. A escada por pagador fica desligada no sandbox. Omita em produção.
 
 ## Receitas prontas
 
+Todas leem `LUNIUM_DESTINO` (`cripto` com `LUNIUM_PAYOUT_ADDRESS`, ou `saldo` sem carteira) e
+validam o dígito do CPF/CNPJ antes de chamar a API.
 - `references/nextjs.md` — App Router: rota de cobrança, rota de status, webhook com corpo cru.
 - `references/express.md` — Node/Express com `express.raw` no webhook.
 - `references/fastapi.md` — Python/FastAPI com httpx.
