@@ -1,6 +1,6 @@
 ---
 name: luniumpay
-description: LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, ou verificar um Pix. Ponto de entrada: pitch em 30 s, árvore de decisão, roteiro de integração, regras, catálogo de erros/estados e as sub-skills. Chave de produção em 1 chamada, sem aprovação humana. (EN: Brazilian Pix ↔ stablecoin API skill hub; start here.)
+description: "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, ou verificar um Pix. Ponto de entrada: pitch em 30 s, árvore de decisão, roteiro de integração, regras, catálogo de erros/estados e as sub-skills. Chave de produção em 1 chamada, sem aprovação humana. (EN: Brazilian Pix ↔ stablecoin API skill hub; start here.)"
 ---
 
 # LuniumPay — comece aqui

@@ -1,6 +1,6 @@
 ---
 name: luniumpay-webhooks
-description: Receber webhooks da LuniumPay com segurança — cadastrar a URL, validar a assinatura HMAC X-Lunium-Signature sobre o corpo cru, deduplicar por event_id, responder rápido e auditar entregas. Use ao implementar o endpoint que recebe eventos de cobrança Pix, cash-out, payout ou saldo da Lunium.
+description: "Receber webhooks da LuniumPay com segurança — cadastrar a URL, validar a assinatura HMAC X-Lunium-Signature sobre o corpo cru, deduplicar por event_id, responder rápido e auditar entregas. Use ao implementar o endpoint que recebe eventos de cobrança Pix, cash-out, payout ou saldo da Lunium."
 ---
 
 # Webhooks assinados
