@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // LuniumPay init — monta a integração "receber Pix → USDT" dentro do seu projeto.
-// Uso: node luniumpay/scripts/init.mjs [--stack next|express|fastapi|supabase] [--email voce@empresa.com] [--dir .] [--force] [--dry]
+// Uso: node luniumpay/scripts/init.mjs [--stack next|express|fastapi|supabase] [--dir .] [--force] [--dry]
 //  - detecta a stack (package.json, pyproject/requirements, pasta supabase/) se --stack não vier
-//  - grava os arquivos da receita oficial (nunca sobrescreve sem --force)
-//  - grava .env.example; com --email cria uma chave de SANDBOX (lun_test_) e grava no .env local (0600), sem imprimir
-//  - não cria chave de produção, não movimenta dinheiro
+//  - grava os arquivos da receita oficial (nunca sobrescreve sem --force) e o .env.example
+//  - NÃO cria chave: desde 25/11/2026 a chave de teste e a de produção nascem no painel, com login.
+//    Depois de gerar a chave no painel, guarde com: node luniumpay/scripts/chave.mjs --dir <pasta>
+//  - não move dinheiro
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, chmodSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PAINEL, lerEnv } from './_segredo.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : []).filter(Boolean));
 const dir = resolve(args.dir || '.');
@@ -42,7 +44,9 @@ for (const [ref, i, path] of plan.extra || []) out.push({ path, code: blocks(ref
 if (out.some(o => !o.code)) { console.error('Receita incompleta em references/. Atualize a skill (npx skills add LuniumPay/lunium-agent-skills).'); process.exit(1); }
 
 const ENV_EXAMPLE = `# LuniumPay — copie para ${plan.env} e preencha. Nunca commite o arquivo preenchido.
-LUNIUM_API_KEY=lun_test_...          # sandbox: POST https://api.luniumpay.com/keys/sandbox {"email": "..."}; produção: POST /keys → lun_live_
+# A chave nasce no painel (${PAINEL}, entre com Google): "Conta real e testes" → "Acessar testes" →
+# "Integração por API" › "Chaves de API" → "Gerar chave deste projeto". Guarde com: node luniumpay/scripts/chave.mjs
+LUNIUM_API_KEY=lun_test_...          # produção: lun_live_ da conta real, depois do upgrade de conta (go-live.mjs leva ao host)
 LUNIUM_WEBHOOK_SECRET=               # devolvido por PATCH /keys/me {"webhook_url": "https://seu-app/webhooks/lunium"} (go-live.mjs faz isso)
 LUNIUM_DESTINO=saldo                 # saldo = custódia em reais, sem carteira · cripto = USDT direto na carteira abaixo
 LUNIUM_PAYOUT_ADDRESS=0x...          # carteira do dono (só destino=cripto)
@@ -58,28 +62,20 @@ const write = (rel, content, mode) => {
 for (const o of out) write(o.path, o.code);
 write('.env.example', ENV_EXAMPLE);
 
-if (args.email && typeof args.email === 'string') {
-  if (args.dry) log(`🔑 criaria chave de sandbox para ${args.email}`);
-  else {
-    const r = await fetch('https://api.luniumpay.com/keys/sandbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: args.email, name: 'init-skill' }) });
-    const b = await r.json();
-    if (!r.ok) log(`⚠️  chave de sandbox não criada: ${b.erro || r.status} ${b.detail || ''}`);
-    else {
-      const envPath = join(dir, plan.env);
-      const line = `LUNIUM_API_KEY=${b.api_key}\n`;
-      if (existsSync(envPath) && /^LUNIUM_API_KEY=/m.test(readFileSync(envPath, 'utf8'))) log(`⏭  ${plan.env} já tem LUNIUM_API_KEY; não alterei`);
-      else { writeFileSync(envPath, (existsSync(envPath) ? readFileSync(envPath, 'utf8').replace(/\n?$/, '\n') : '') + line); chmodSync(envPath, 0o600); log(`🔑 chave de SANDBOX gravada em ${plan.env} (0600). Não imprimo a chave.`); }
-      const gi = join(dir, '.gitignore'); const cur = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
-      if (!cur.split('\n').includes(plan.env)) { writeFileSync(gi, cur.replace(/\n?$/, '\n') + plan.env + '\n'); log(`🙈 ${plan.env} adicionado ao .gitignore`); }
-    }
-  }
-}
+if (args.email) log('ℹ️  --email não cria mais chave: a API recusa (403 sandbox_somente_no_painel). A chave de teste nasce no painel.');
+const temChave = /^lun_(test|live)_[0-9a-f]{48}$/.test(lerEnv(join(dir, plan.env)).LUNIUM_API_KEY || process.env.LUNIUM_API_KEY || '');
+const rotaWebhook = stack === 'next' ? '/api/webhooks/lunium' : stack === 'supabase' ? '/functions/v1/lunium-webhook' : '/webhooks/lunium';
 log(`
 Próximos passos
-1. Preencha ${plan.env}: LUNIUM_DESTINO=saldo (sem carteira) ou cripto + LUNIUM_PAYOUT_ADDRESS e LUNIUM_CHAIN.
-2. Diagnóstico:  LUNIUM_API_KEY=... node luniumpay/scripts/doctor.mjs
-3. Prova:        LUNIUM_API_KEY=... node luniumpay-pix-charge/scripts/smoke.mjs cripto success
-4. Deploy:       publique o app (precisa de URL https). Guia por stack: luniumpay/references/producao.md
-5. Produção:     node luniumpay/scripts/go-live.mjs --name "<negócio>" --email <e-mail> --webhook https://<dominio>${stack === 'next' ? '/api/webhooks/lunium' : stack === 'supabase' ? '/functions/v1/lunium-webhook' : '/webhooks/lunium'}${stack === 'next' ? ' --vercel --deploy' : ' --env .env.lunium.production'}
-                 (chave lun_live_, webhook + segredo, variáveis no host, teste de entrega). Depois: luniumpay/references/checklist-producao.md
+1. Chave de teste: ${temChave ? `já existe em ${plan.env} ✅` : `entre em ${PAINEL} com Google → "Conta real e testes" → "Acessar testes" →
+                 "Integração por API" › "Chaves de API" → "Gerar chave deste projeto". Depois:
+                 node luniumpay/scripts/chave.mjs --dir ${dir}   (cola sem eco, grava em ${plan.env} 0600)`}
+2. Preencha ${plan.env}: LUNIUM_DESTINO=saldo (sem carteira) ou cripto + LUNIUM_PAYOUT_ADDRESS e LUNIUM_CHAIN.
+3. Diagnóstico:  node luniumpay/scripts/doctor.mjs
+4. Prova:        node luniumpay-pix-charge/scripts/smoke.mjs cripto success   (e um cenário ruim: failed, payer_mismatch)
+5. Deploy:       publique o app (precisa de URL https). Guia por stack: luniumpay/references/producao.md
+6. Produção:     no painel, conta real → "Upgrade de conta" (verificação do titular) → cobranças Pix liberadas →
+                 "Chaves de API" → lun_live_. Então:
+                 node luniumpay/scripts/go-live.mjs --webhook https://<dominio>${rotaWebhook}${stack === 'next' ? ' --vercel --deploy' : ' --env .env.lunium.production'}
+                 Depois: luniumpay/references/checklist-producao.md
 ${stack === 'next' ? 'Frontend: /pagar já está pronto (app/pagar/page.tsx usa components/CheckoutPix.tsx).' : ''}`);

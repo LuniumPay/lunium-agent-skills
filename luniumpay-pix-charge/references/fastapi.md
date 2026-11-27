@@ -1,6 +1,7 @@
 # FastAPI (Python 3.10+) — receber Pix e cair em USDT
 
-`pip install fastapi uvicorn httpx`
+`pip install fastapi uvicorn httpx` · `LUNIUM_API_KEY` vem do painel ("Chaves de API"), gravada no `.env` por
+`node luniumpay/scripts/chave.mjs`; carregue o `.env` no processo (ex.: `uvicorn --env-file .env lunium_api:app`).
 
 ```python
 import hmac, hashlib, os, re, time, json
@@ -31,13 +32,28 @@ def documento_valido(doc: str) -> bool:
 
 app = FastAPI()
 
+# Erros da CONTA (chave, verificação do titular, liberação, manutenção): o pagador não resolve; o dono resolve no painel.
+DA_CONTA = {"chave_ausente", "chave_incorreta", "chave_desconhecida", "nao_autenticado", "verificacao_titular_pendente",
+            "recebimento_sem_autorizacao", "em_manutencao", "custodia_desligada", "cashin_indisponivel"}
+
 async def lunium(method: str, path: str, body: dict | None = None) -> dict:
-    async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.request(method, BASE + path, headers=H, json=body)
-    data = r.json()
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.request(method, BASE + path, headers=H, json=body)
+    except httpx.HTTPError:
+        raise HTTPException(502, {"erro": "indisponivel", "detail": "Serviço de pagamento fora do ar. Tente de novo em instantes."})
+    try:
+        data = r.json()
+    except ValueError:
+        data = {}
     if r.status_code >= 400:
-        # data["erro"], data["acao"], data["agent_guidance"] orientam o próximo passo
-        raise HTTPException(status_code=400 if r.status_code < 500 else 502, detail=data)
+        erro = data.get("erro")
+        if erro in DA_CONTA:
+            # para o dono (log do servidor); nunca repita em loop
+            print("[lunium] conta não pronta:", erro, (data.get("liberacao") or {}).get("status", ""), data.get("detail"), data.get("request_id"))
+            raise HTTPException(503, {"erro": "pagamento_indisponivel", "detail": "Pagamento por Pix indisponível no momento. Tente mais tarde."})
+        raise HTTPException(status_code=r.status_code if r.status_code < 500 else 502,
+                            detail={"erro": erro, "acao": data.get("acao"), "detail": data.get("detail")})
     return data
 
 @app.post("/cobrancas")
@@ -50,6 +66,9 @@ async def criar(p: dict):
         "destino": DESTINO,
         "external_id": f"pedido-{p['pedido_id']}",   # grave o pedido ANTES; reutilize no retry
     }
+    email = str(p.get("payer_email") or "").strip()
+    if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        body["payer_email"] = email                  # opcional: e-mail que o pagador informou
     if DESTINO == "cripto":
         body.update({"asset": "USDT", "chain": os.environ.get("LUNIUM_CHAIN", "polygon"),
                      "payout_address": os.environ["LUNIUM_PAYOUT_ADDRESS"]})
@@ -57,15 +76,20 @@ async def criar(p: dict):
         body["sandbox_scenario"] = "success"
     c = await lunium("POST", "/cashin/charge", body)
     return {"cashin_id": c["cashin_id"], "qr_image_url": c["qr_image_url"],
-            "qr_copypaste": c["qr_copypaste"], "expires_at": c["expires_at"]}
+            "qr_copypaste": c["qr_copypaste"], "amount_cents": c.get("amount_cents"), "expires_at": c["expires_at"],
+            "hold_hours": c.get("hold_hours") or 0, "hold_reason": c.get("hold_reason")}
 
 @app.get("/cobrancas/{cashin_id}")
 async def status(cashin_id: str):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{4,80}", cashin_id):   # só ids que a API devolveu
+        raise HTTPException(400, {"erro": "id_invalido"})
     s = await lunium("GET", f"/cashin/{cashin_id}/status")
     return {"status": s["status"], "settlement": s.get("settlement_status"),
             "proof": s.get("settlement_proof"),
             "liberado": s["status"] == "paid" and s.get("settlement_status") == "sent",
-            "tx_url": s.get("settlement_tx_url")}
+            "tx_url": s.get("settlement_tx_url"), "e2e": s.get("e2e"),
+            # retenção local: horas + data; motivo só quando a API gravou (nunca deduza)
+            "hold_hours": s.get("hold_hours") or 0, "liberar_em": s.get("liberar_em"), "hold_reason": s.get("hold_reason")}
 
 @app.post("/webhooks/lunium")
 async def webhook(req: Request):

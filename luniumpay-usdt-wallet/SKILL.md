@@ -3,14 +3,17 @@ name: luniumpay-usdt-wallet
 description: "Carteira USDT/USDC na LuniumPay — depositar stablecoin em várias redes, manter saldo em cripto e pagar Pix com ele por chave Pix ou Pix Copia e Cola, com cotação, reserva e comprovante. Use quando o dono do app quer pagar contas, fornecedores ou clientes em Pix usando USDT que já possui, sem converter antes. EN: USDT/USDC wallet at LuniumPay: deposit stablecoin on several networks, hold a crypto balance and pay Pix from it by key or copy-and-paste, with quote, reserve and receipt."
 license: MIT
 metadata:
-  version: "2.2.0"
-  api: "1.45.2"
+  version: "3.0.0"
+  api: "1.54.0"
 ---
 
 # Carteira USDT: saldo em stablecoin, Pix pago com ele
 
-Liberada para todas as chaves de produção. Valores em **string decimal**
-(`"amount": "100"`, `"brl_amount": "250.00"`).
+Confira `enabled`, `payments_enabled` e `withdrawals_enabled` em `GET /carteira-usdt`: cada parte tem
+disponibilidade própria, separada do saldo em reais. É o caminho para pagar Pix (chave ou copia e cola)
+enquanto o Pix com saldo em reais (`POST /payouts`) estiver em manutenção. Chave do painel, guardada com
+`node luniumpay/scripts/chave.mjs`; em conta nova, `lun_live_` só paga depois do upgrade de conta (403
+`verificacao_titular_pendente`). Valores em **string decimal** (`"amount": "100"`, `"brl_amount": "250.00"`).
 
 ## 1. Ver a carteira
 `GET /carteira-usdt` → `enabled`, `payments_enabled`, `withdrawals_enabled`, `balance`
@@ -46,6 +49,11 @@ USDT como cotação com validade.
 `POST /carteira-usdt/withdrawals` (confirma, com `external_id`) →
 `GET /carteira-usdt/withdrawals/{id}` ou `GET /carteira-usdt/withdrawals/external/{external_id}`
 (recupera pela sua referência após timeout). Lista: `GET /carteira-usdt/withdrawals`.
+
+## Webhooks
+`wallet.deposit_credited` (depósito virou saldo), `wallet.payment_completed` / `wallet.payment_failed`
+(Pix pago com a carteira), `wallet.withdrawal.completed` / `wallet.withdrawal.failed`. Mesmo cadastro e
+assinatura de `luniumpay-webhooks`; o webhook avisa, o `GET` do pagamento manda.
 
 ## Armadilhas
 - Rede errada perde fundos: confirme `network` com o dono antes de mostrar o endereço.

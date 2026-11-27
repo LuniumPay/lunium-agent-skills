@@ -1,6 +1,8 @@
 # Supabase Edge Function (Deno) — receber Pix e cair em USDT
 
-Segredos: `supabase secrets set LUNIUM_API_KEY=lun_test_... LUNIUM_WEBHOOK_SECRET=... LUNIUM_DESTINO=cripto LUNIUM_PAYOUT_ADDRESS=0x...` (sem carteira: `LUNIUM_DESTINO=saldo`)
+Segredos: grave a chave do painel com `node luniumpay/scripts/chave.mjs --env .env` e suba com
+`supabase secrets set --env-file .env` (`LUNIUM_API_KEY`, `LUNIUM_WEBHOOK_SECRET`, `LUNIUM_DESTINO=cripto|saldo`,
+`LUNIUM_PAYOUT_ADDRESS`). Nunca digite a chave na linha de comando: ela fica no histórico do shell.
 
 Tabela sugerida:
 ```sql
@@ -10,6 +12,8 @@ create table pedidos (
   cashin_id text,
   status text default 'pending',
   settlement_status text,
+  hold_hours int,                 -- retenção local decidida na criação do QR
+  hold_reason text,               -- new_payer | new_account (só quando a API gravou)
   created_at timestamptz default now()
 );
 create table lunium_eventos (event_id text primary key, payload jsonb, received_at timestamptz default now());
@@ -33,22 +37,31 @@ function documentoValido(doc: string): boolean {
 }
 
 Deno.serve(async (req) => {
-  const { pedidoId, amountCents, payerTaxNumber } = await req.json();
+  const { pedidoId, amountCents, payerTaxNumber, payerEmail } = await req.json();
   if (!documentoValido(payerTaxNumber)) return Response.json({ erro: 'documento_invalido', acao: 'corrigir', detail: 'CPF/CNPJ do pagador inválido' }, { status: 400 });
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   await db.from('pedidos').upsert({ id: pedidoId, amount_cents: amountCents });   // antes de cobrar
   const r = await fetch(BASE + '/cashin/charge', { method: 'POST', headers: H, body: JSON.stringify({
     amount_cents: amountCents,
     payer_tax_number: String(payerTaxNumber).replace(/\D/g, ''),
+    ...(typeof payerEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail) ? { payer_email: payerEmail.trim() } : {}),   // opcional
     destino,
     ...(destino === 'cripto' ? { asset: 'USDT', chain: Deno.env.get('LUNIUM_CHAIN') ?? 'polygon', payout_address: Deno.env.get('LUNIUM_PAYOUT_ADDRESS') } : {}),
     external_id: `pedido-${pedidoId}`,
     ...(KEY.startsWith('lun_test_') ? { sandbox_scenario: 'success' } : {}),
   }) });
-  const c = await r.json();
-  if (!r.ok) return Response.json(c, { status: 400 });          // c.erro / c.acao / c.agent_guidance
-  await db.from('pedidos').update({ cashin_id: c.cashin_id }).eq('id', pedidoId);
-  return Response.json({ cashinId: c.cashin_id, qrImageUrl: c.qr_image_url, qrCopyPaste: c.qr_copypaste, expiresAt: c.expires_at });
+  const c = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    // Erros da CONTA (verificação do titular, liberação, chave): o pagador não resolve; o dono vê no log e resolve no painel.
+    const daConta = ['chave_ausente', 'chave_incorreta', 'chave_desconhecida', 'nao_autenticado', 'verificacao_titular_pendente', 'recebimento_sem_autorizacao', 'em_manutencao', 'custodia_desligada', 'cashin_indisponivel'];
+    if (daConta.includes(c.erro)) {
+      console.error('[lunium] conta não pronta:', c.erro, c.liberacao?.status ?? '', c.detail, c.request_id);
+      return Response.json({ erro: 'pagamento_indisponivel', detail: 'Pagamento por Pix indisponível no momento. Tente mais tarde.' }, { status: 503 });
+    }
+    return Response.json({ erro: c.erro ?? 'indisponivel', acao: c.acao, detail: c.detail }, { status: r.status >= 500 ? 502 : r.status });
+  }
+  await db.from('pedidos').update({ cashin_id: c.cashin_id, hold_hours: c.hold_hours ?? 0, hold_reason: c.hold_reason ?? null }).eq('id', pedidoId);
+  return Response.json({ cashinId: c.cashin_id, qrImageUrl: c.qr_image_url, qrCopyPaste: c.qr_copypaste, amountCents: c.amount_cents, expiresAt: c.expires_at, holdHours: c.hold_hours ?? 0, holdReason: c.hold_reason ?? null });
 });
 ```
 
@@ -57,6 +70,8 @@ Deno.serve(async (req) => {
 import { createClient } from 'npm:@supabase/supabase-js@2';
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+// comparação em tempo constante (mesmo tamanho; percorre tudo sem sair cedo)
+const iguais = (a: string, b: string) => { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
 
 Deno.serve(async (req) => {
   const raw = new Uint8Array(await req.arrayBuffer());
@@ -66,14 +81,14 @@ Deno.serve(async (req) => {
   const key = await crypto.subtle.importKey('raw', enc.encode(Deno.env.get('LUNIUM_WEBHOOK_SECRET')!), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const msg = new Uint8Array([...enc.encode(`${f.t}.`), ...raw]);
   const expected = hex(await crypto.subtle.sign('HMAC', key, msg));
-  if (expected !== f.v1.toLowerCase()) return new Response('bad', { status: 401 });   // em Deno, compare com timing-safe se disponível
+  if (!iguais(expected, f.v1.toLowerCase())) return new Response('bad', { status: 401 });
 
   const event = JSON.parse(new TextDecoder().decode(raw));
   const eventId = req.headers.get('x-lunium-event-id') ?? event.event_id;
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const { error } = await db.from('lunium_eventos').insert({ event_id: eventId, payload: event });
   if (error?.code === '23505') return new Response('dup', { status: 200 });   // já processado
-  // Releia o status antes de liberar: GET /cashin/{id}/status → paid + sent
+  // Evento desconhecido = ignore. Antes de liberar, releia: GET /cashin/{id}/status → paid + sent
   return new Response('ok', { status: 200 });
 });
 ```

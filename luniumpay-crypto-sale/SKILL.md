@@ -3,14 +3,18 @@ name: luniumpay-crypto-sale
 description: "Pagar uma chave Pix ou um Pix copia e cola usando cripto (cash-out da LuniumPay) — cotação, aceite, depósito on-chain e Pix com comprovante E2E. Use quando o usuário quiser transformar USDT/USDC (ou outro ativo do catálogo) em reais numa conta Pix, ou pagar um boleto Pix com cripto. EN: Pay a Pix key or Pix copy-and-paste code with crypto (LuniumPay cash-out): quote, accept, on-chain deposit, Pix paid with a Central Bank receipt. Use to turn USDT/USDC into BRL on a Pix account."
 license: MIT
 metadata:
-  version: "2.2.0"
-  api: "1.45.2"
+  version: "3.0.0"
+  api: "1.54.0"
 ---
 
 # Cash-out: cripto entra, Pix sai
 
-Base `https://api.luniumpay.com`, header `X-API-Key`. Valores em **string decimal**
-(`"amount": "25.5"`, `"brl_amount": "100.00"`); rede no campo **`network`**.
+Base `https://api.luniumpay.com`, header `X-API-Key` (chave gerada no painel, guardada com
+`node luniumpay/scripts/chave.mjs`). Valores em **string decimal** (`"amount": "25.5"`,
+`"brl_amount": "100.00"`); rede no campo **`network`**. Em produção, `key.cashout_enabled` precisa estar
+`true` e, em conta nova, a chave `lun_live_` só cria ordem depois do upgrade de conta (senão 403
+`verificacao_titular_pendente`, `acao: parar`). A venda não depende da liberação de cobranças Pix.
+**Nunca peça CPF/CNPJ de quem recebe** além da própria chave Pix: a venda não exige documento.
 
 ## 0. Catálogo (`GET /catalog`, diferente de `/cashin/catalog`)
 - `fast[]` → `{asset, network}` com rota direta (ex.: USDT/polygon).
@@ -55,7 +59,13 @@ Desvios: `DELAYED`, `PROCESSING`, `MANUAL_REVIEW`, `AWAITING_REFUND_ADDRESS`,
 `refund_network`/`refund_asset` e envie `POST /cash-outs/{id}/refund-address`
 `{"refund_address": "<carteira do cliente>"}`. A ordem segue `REFUNDING → REFUNDED`
 (`refund_tx_hash`). `deposit_from` é informativo: nunca devolva "para a origem" (pode ser
-corretora). Não existe devolução automática sem esse passo.
+corretora). Não existe devolução automática sem esse passo. O valor e o ativo devolvidos vêm na ordem
+(`refund_tx_hash` e campos de devolução): mostre o que a API diz, não calcule por conta própria.
+
+## Limites
+Por transação e por dia por CPF/CNPJ de quem RECEBE o Pix (renova à meia-noite de Brasília): leia
+`limits.max_brl_cents` e `limits.max_brl_cents_por_transacao` em `GET /keys/me`. Acima do diário:
+`limite_diario_recebedor` (`acao: esperar`). Não divida a venda para contornar.
 
 ## Armadilhas
 - `MANUAL_REVIEW`, `PAYING_OUT`, `DELAYED`, `PROCESSING` e timeouts NÃO autorizam outro
@@ -76,4 +86,5 @@ corretora). Não existe devolução automática sem esse passo.
   `PROCESSING` e você fecha com `POST /sandbox/operations/{cashout_id}/resolve`
   `{"outcome": "sent"}` (ou `"failed"` → `REFUNDED`).
 - Tokens DEX não são simulados (`/catalog/dex` vem vazio). Prévia funciona.
-- Prova pronta: `node scripts/smoke-cashout.mjs [USDT polygon|DEPIX liquid] [cenario]`.
+- Prova pronta: `node scripts/smoke-cashout.mjs [USDT polygon|DEPIX liquid] [cenario]` (lê a `lun_test_`
+  do ambiente ou do `.env`).

@@ -3,8 +3,8 @@ name: luniumpay-webhooks
 description: "Receber webhooks da LuniumPay com segurança — cadastrar a URL, validar a assinatura HMAC X-Lunium-Signature sobre o corpo cru, deduplicar por event_id, responder rápido e auditar entregas. Use ao implementar o endpoint que recebe eventos de cobrança Pix, cash-out, payout ou saldo da Lunium. EN: Receive LuniumPay webhooks safely: register the URL, verify the X-Lunium-Signature HMAC over the raw body, deduplicate by event_id, respond fast, audit deliveries. Includes the official verifier and a test."
 license: MIT
 metadata:
-  version: "2.2.0"
-  api: "1.45.2"
+  version: "3.0.0"
+  api: "1.54.0"
 ---
 
 # Webhooks assinados
@@ -13,7 +13,9 @@ metadata:
 1. `PATCH /keys/me` com `{"webhook_url": "https://seu-app.com/webhooks/lunium"}` (https público) →
    resposta traz `webhook_secret`. Guarde em `LUNIUM_WEBHOOK_SECRET` (servidor).
    Perdeu? `PATCH /keys/me` com `{"rotate_webhook_secret": true}`.
-2. Dispare uma entrega real assinada: `POST /webhooks/test`.
+2. Dispare uma entrega real assinada: `POST /webhooks/test` (síncrono: devolve o HTTP que o seu endpoint
+   respondeu; máx. 6 por minuto). Com `lun_live_` de conta nova, só depois do upgrade de conta (antes:
+   403 `verificacao_titular_pendente`); cadastrar a URL (`PATCH /keys/me`) funciona antes.
 3. Audite: `GET /webhooks/deliveries`; reenvie uma: `POST /webhooks/deliveries/{event_id}/retry`.
 
 ## Validação (obrigatória em TODA entrega)
@@ -26,8 +28,8 @@ válido   = |agora - t| ≤ 300 s  E  comparação_em_tempo_constante(esperado, 
 ```
 - Use o corpo CRU (bytes), antes de qualquer `JSON.parse` / middleware de JSON.
 - Inválido → HTTP 401 e descarte. Nunca processe.
-- Ignore `X-Webhook-Signature` (`sha256=…`): formato legado, desligado em 2026-11-09; chaves
-  criadas desde 2026-08-08 nem o recebem. Valide só a v2 acima.
+- `X-Webhook-Signature` (`sha256=…`) era o formato legado, desligado em 09/11/2026. Valide só a v2 acima;
+  se ainda houver código lendo o legado, remova.
 - Implementação de referência: `scripts/verify-webhook.mjs` (igual ao exemplo oficial
   em https://docs.luniumpay.com/examples/verify-webhook.mjs). Teste: `node scripts/verify-webhook.test.mjs`.
 
@@ -50,6 +52,13 @@ válido   = |agora - t| ≤ 300 s  E  comparação_em_tempo_constante(esperado, 
   `cashout.expired`, `cashout.failed`.
 - Payout: `payout.sent`, `payout.failed`, `payout.refunded`.
 - Saldo: `saldo.congelado`, `saldo.liberado`, `saldo.transferido`.
+- Carteira USDT: `wallet.deposit_credited`, `wallet.payment_completed`, `wallet.payment_failed`,
+  `wallet.withdrawal.completed`, `wallet.withdrawal.failed`.
+- Teste: `webhook.test`.
+
+**Evento que você não conhece = responda 2xx e ignore:** a lista cresce sem aviso. Eventos de cash-in levam
+`hold_reason` quando a cobrança nasceu retida (`new_payer`, `new_account`); `cashout.confirming` traz
+`confirmations`/`confirmations_required` em redes de espera longa.
 
 `cashin.paid` NÃO significa cripto entregue; espere `cashin.settled` (e
 `settlement_status=sent` no status). Webhook assinado não substitui dedupe nem

@@ -10,7 +10,14 @@
 
 - **Liberar produto (destino cripto):** `paid` **e** `sent`. Para rastro: `settlement_tx_hash`, `settlement_tx_url`, `proof=confirmed`.
 - **Liberar produto (destino saldo):** `paid` e `sent`; o crédito aparece em `GET /saldo` (`disponivel_cents`). Pode haver carência: `bloqueado_cents`, `proximas_liberacoes[]` (`valor_cents`, `disponivel_em`), `em_carencia`, `carencia_ate`; webhooks `saldo.congelado` → `saldo.liberado`. A cobrança em si pode mostrar `held: false` e mesmo assim o crédito ficar em carência: leia o saldo.
-- `held: true` / `hold_hours > 0` / `liberar_em`: retenção automática pela faixa do pagador. Não é falha. Não peça outro Pix.
+- **Retenção** (não é falha; não peça outro Pix, não recrie a cobrança). Duas origens, campos diferentes:
+  - local (decidida na criação do QR): `hold_hours > 0` e `liberar_em`, com o motivo em `hold_reason` quando
+    gravado — `new_payer` (CPF/CNPJ novo: ainda não cumpriu a retenção inicial) ou `new_account` (regra dos
+    primeiros dias da conta). Sem `hold_reason`, mostre só horas e data: **nunca deduza o motivo**.
+  - do provedor: `held: true` / `held_hours` / `delay_until` (ou `status: delayed`).
+  - Como dizer ao pagador: "Pix recebido · EM RETENÇÃO · liberação em {liberar_em no horário de Brasília}";
+    com `new_payer`, acrescente "CPF/CNPJ novo no sistema: todo CPF/CNPJ novo passa por uma retenção inicial."
+    Nunca mostre "liquidando" ou "entregando" para cobrança retida.
 - `delayed`: provedor demorando. Espere; o estado final chega por webhook/status.
 - `under_review`: análise de risco. Espere. Não repita.
 - `incerto`: conciliação em curso. Mostre o estado e aguarde; nunca anuncie entrega nem recrie a cobrança.
@@ -30,14 +37,19 @@
 
 ## Payout Pix com saldo (`GET /payouts/{id}` → `status`)
 `pending` → `sent` (concluído, `e2e`, `verify_url`) · `failed` (`error`) · `refunded`. Débito acontece ANTES do envio (valor + taxa).
+Desde 21/11/2026 o `POST /payouts` está em manutenção em produção: confira `payout.enabled` e `payout.via` em `/keys/me`
+(`"manutencao"` → criação responde 503 `em_manutencao`, nada debitado). Consultas e comprovantes de payouts antigos seguem; o sandbox continua simulando.
 
 ## Saque do saldo em cripto (`POST /saldo/sacar-cripto` → `settlement_status`)
 Mesmo eixo do cash-in: `sending` → `sent` · `incerto` · `failed`. `debited_cents` = valor + taxa. Sem teto comercial por valor; respeita saldo livre, mínimos da rota e carência.
 
 ## Carteira USDT (`GET /carteira-usdt/payments/{id}`)
-`status` + `final: true|false`. Com `final: true` leia `pix_e2e`, `receipt_url` ou `error`. Depósito: `GET /carteira-usdt/deposits` → `status=available` quando creditado.
+`status` + `final: true|false`. Com `final: true` leia `pix_e2e`, `receipt_url` ou `error`. Depósito: `GET /carteira-usdt/deposits` → `waiting` → `confirming` → `available` (creditado) · `expired`.
+Saque de volta: `GET /carteira-usdt/withdrawals/{id}` (ou `/withdrawals/external/{external_id}` depois de um timeout) até o estado final.
 
 ## Webhooks correspondentes
 `cashin.paid` (Pix pago, NÃO entregue) → `cashin.settled` (entregue/creditado). `cashin.held`, `cashin.delayed`, `cashin.expired`, `cashin.failed`, `cashin.refunded`, `cashin.settlement_failed`.
-`cashout.*` espelha os estados acima. `payout.sent|failed|refunded`. `saldo.congelado|liberado|transferido`.
+`cashout.*` espelha os estados acima (`cashout.confirming` traz `confirmations`/`confirmations_required` em redes de espera longa). `payout.sent|failed|refunded`. `saldo.congelado|liberado|transferido`.
+Carteira: `wallet.deposit_credited`, `wallet.payment_completed`, `wallet.payment_failed`, `wallet.withdrawal.completed`, `wallet.withdrawal.failed`. Teste: `webhook.test`.
+Eventos de cash-in levam `hold_reason` quando houver. Evento desconhecido = no-op (a lista cresce sem aviso).
 Webhook avisa; status manda: releia antes de liberar.

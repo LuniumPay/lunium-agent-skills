@@ -1,4 +1,4 @@
-# Componente React de checkout Pix (QR da API, copiar, contagem, estados)
+# Componente React de checkout Pix (QR da API, copiar, contagem, estados, retenção)
 
 Usa as rotas das receitas (`POST /api/cobranca`, `GET /api/cobranca/{id}`). Sem
 biblioteca de QR: a imagem vem pronta da LuniumPay (`qr_image_url`).
@@ -7,10 +7,17 @@ biblioteca de QR: a imagem vem pronta da LuniumPay (`qr_image_url`).
 'use client';
 import { useEffect, useState } from 'react';
 
-export type Cobranca = { cashinId: string; qrImageUrl: string; qrCopyPaste: string; amountCents: number; expiresAt: string };
-type Status = { status: string; settlement: string | null; proof: string | null; liberado: boolean; txUrl?: string | null; liberarEm?: string | null };
+export type Cobranca = { cashinId: string; qrImageUrl: string; qrCopyPaste: string; amountCents: number; expiresAt: string; holdHours?: number; holdReason?: string | null };
+type Status = { status: string; settlement: string | null; proof: string | null; liberado: boolean; txUrl?: string | null; liberarEm?: string | null; holdHours?: number; holdReason?: string | null };
 
 const brl = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Data de liberação sempre no horário de Brasília, dita por extenso.
+const brasilia = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+// Motivo só quando a API gravou um (hold_reason). Sem ele, horas e data bastam: nunca deduza.
+const MOTIVO: Record<string, string> = {
+  new_payer: 'CPF/CNPJ novo no sistema. Todo CPF/CNPJ novo passa por uma retenção inicial.',
+  new_account: 'Esta conta é nova e, nos primeiros dias, os recebimentos passam por uma retenção.',
+};
 const MENSAGEM: Record<string, string> = {
   pending: 'Aguardando pagamento. Abra o app do seu banco e pague o Pix.',
   paid: 'Pix recebido. Finalizando a entrega…',
@@ -35,6 +42,7 @@ export function CheckoutPix({ cobranca }: { cobranca: Cobranca }) {
     let parar = false;
     const poll = async () => {
       const r = await fetch(`/api/cobranca/${cobranca.cashinId}`, { cache: 'no-store' });
+      if (!r.ok) { if (!parar) setTimeout(poll, 15000); return; }   // falha momentânea: espaça, não martela
       const s: Status = await r.json(); if (parar) return; setSt(s);
       if (s.liberado || ['expired', 'refunded', 'failed'].includes(s.status)) return;
       setTimeout(poll, 5000);
@@ -44,13 +52,23 @@ export function CheckoutPix({ cobranca }: { cobranca: Cobranca }) {
 
   const copiar = async () => { await navigator.clipboard.writeText(cobranca.qrCopyPaste); setCopiado(true); setTimeout(() => setCopiado(false), 2000); };
   const status = st?.status ?? 'pending';
-  const retido = st?.liberarEm && !st.liberado;
+  const retido = status === 'paid' && !st?.liberado && Boolean(st?.liberarEm) && (st?.holdHours ?? 0) > 0;
+  const motivo = st?.holdReason ? MOTIVO[st.holdReason] : null;
 
   if (st?.liberado) return (
     <section role="status" aria-live="polite">
       <h2>Pagamento confirmado</h2>
       <p>{brl(cobranca.amountCents)} recebidos. Pedido liberado.</p>
       {st.txUrl && <a href={st.txUrl} target="_blank" rel="noreferrer">Ver comprovante da liquidação</a>}
+    </section>
+  );
+
+  if (retido) return (
+    <section role="status" aria-live="polite">
+      <h2>Pix recebido · em retenção</h2>
+      <p>Retenção de {st!.holdHours} h. Liberação em {brasilia(st!.liberarEm!)} (horário de Brasília).</p>
+      {motivo && <p>{motivo}</p>}
+      <p>Não é preciso pagar de novo. Você será avisado quando liberar.</p>
     </section>
   );
 
@@ -64,9 +82,10 @@ export function CheckoutPix({ cobranca }: { cobranca: Cobranca }) {
           <textarea readOnly value={cobranca.qrCopyPaste} rows={3} style={{ width: '100%' }} />
           <button type="button" onClick={copiar}>{copiado ? 'Copiado!' : 'Copiar código Pix'}</button>
           <p>Expira em {Math.floor(restante / 60)}:{String(restante % 60).padStart(2, '0')}</p>
+          {(cobranca.holdHours ?? 0) > 0 && <p>Depois do pagamento, este Pix fica em retenção por {cobranca.holdHours} h antes de liberar.{cobranca.holdReason && MOTIVO[cobranca.holdReason] ? ` ${MOTIVO[cobranca.holdReason]}` : ''}</p>}
         </>
       )}
-      <p>{retido ? `Pagamento recebido. Liberação prevista para ${new Date(st!.liberarEm!).toLocaleString('pt-BR')}.` : MENSAGEM[status] ?? 'Processando…'}</p>
+      <p>{MENSAGEM[status] ?? 'Processando…'}</p>
       {status === 'pending' && restante === 0 && <p>{MENSAGEM.expired}</p>}
     </section>
   );
@@ -75,9 +94,11 @@ export function CheckoutPix({ cobranca }: { cobranca: Cobranca }) {
 
 Regras embutidas: imagem e código vêm da API; nada é gerado no cliente. "Liberado"
 só quando o backend diz `liberado` (status `paid` + `settlement_status` `sent`).
-Estados intermediários falam a verdade sem prometer prazo. Sem "instantâneo".
+Retido diz EM RETENÇÃO, as horas e a data em Brasília, e o motivo só quando a API o gravou
+(`hold_reason`); nunca "liquidando" para cobrança retida. Estados intermediários falam a verdade
+sem prometer prazo. Sem "instantâneo".
 
-Página pronta (`app/pagar/page.tsx`): valor + CPF/CNPJ → `POST /api/cobranca` → checkout.
+Página pronta (`app/pagar/page.tsx`): valor + CPF/CNPJ (+ e-mail opcional) → `POST /api/cobranca` → checkout.
 `init.mjs` grava as duas; ajuste o visual à vontade, mantenha as regras.
 
 ```tsx
@@ -88,6 +109,7 @@ import { CheckoutPix, type Cobranca } from '@/components/CheckoutPix';
 export default function PagarPage() {
   const [valor, setValor] = useState('5,00');
   const [doc, setDoc] = useState('');
+  const [email, setEmail] = useState('');
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -96,9 +118,9 @@ export default function PagarPage() {
     e.preventDefault(); setErro(null); setCarregando(true);
     const amountCents = Math.round(Number(valor.replace(/\./g, '').replace(',', '.')) * 100);
     const pedidoId = `web-${Date.now()}`;   // no seu app: id do pedido já gravado no banco (idempotência)
-    const r = await fetch('/api/cobranca', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidoId, amountCents, payerTaxNumber: doc }) });
-    const b = await r.json(); setCarregando(false);
-    if (!r.ok) { setErro(b.detail || b.erro || 'Não foi possível gerar o Pix.'); return; }
+    const r = await fetch('/api/cobranca', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidoId, amountCents, payerTaxNumber: doc, ...(email ? { payerEmail: email } : {}) }) });
+    const b = await r.json().catch(() => ({})); setCarregando(false);
+    if (!r.ok) { setErro(b.detail || 'Não foi possível gerar o Pix.'); return; }   // erros da conta chegam já como "indisponível"
     setCobranca(b);
   }
 
@@ -110,6 +132,7 @@ export default function PagarPage() {
           <form onSubmit={criar}>
             <label>Valor (R$)<br /><input value={valor} onChange={e => setValor(e.target.value)} inputMode="decimal" required /></label><br />
             <label>CPF ou CNPJ de quem paga<br /><input value={doc} onChange={e => setDoc(e.target.value)} inputMode="numeric" required /></label><br />
+            <label>E-mail de quem paga (opcional)<br /><input value={email} onChange={e => setEmail(e.target.value)} type="email" autoComplete="email" /></label><br />
             <button type="submit" disabled={carregando}>{carregando ? 'Gerando…' : 'Gerar Pix'}</button>
           </form>
           {erro && <p role="alert">{erro}</p>}

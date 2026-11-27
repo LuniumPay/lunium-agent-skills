@@ -5,12 +5,12 @@
     "url": "https://github.com/LuniumPay",
     "email": "contato@luniumpay.com"
   },
-  "description": "LuniumPay Agent Skills: Pix ⇄ stablecoin no Brasil por API. Instale 'luniumpay' para o hub ou cada skill separada.",
+  "description": "LuniumPay Agent Skills 3.0: Pix ⇄ stablecoin no Brasil por API. Instale 'luniumpay' para o hub ou cada skill separada.",
   "plugins": [
     {
       "name": "luniumpay",
       "source": "./luniumpay",
-      "description": "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com s",
+      "description": "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Hub: chave pelo painel, prontidão da conta, roteiro, regras, erros e estados. Comece aqui.",
       "category": "payments",
       "tags": [
         "pix",
@@ -18,12 +18,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-pix-charge",
       "source": "./luniumpay-pix-charge",
-      "description": "Receber Pix de um pagador brasileiro e liquidar em USDT/USDC na carteira do dono (ou em saldo em reais) com a LuniumPay. Use quando o usuário quiser \"receber Pix em USDT\", cobrar em reais com entrega ",
+      "description": "Receber Pix e liquidar em USDT/USDC na carteira (ou em saldo em reais): QR por API, receitas Next.js/Express/FastAPI/Supabase, checkout React e smoke no sandbox.",
       "category": "payments",
       "tags": [
         "pix",
@@ -31,12 +32,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-custody",
       "source": "./luniumpay-custody",
-      "description": "Receber Pix em saldo em reais na LuniumPay (sem carteira fixa), separar por cliente com subcontas, sacar em cripto para qualquer rede do catálogo, pagar Pix com o saldo e transferir entre subcontas. U",
+      "description": "Saldo em reais sem carteira fixa: subcontas por cliente, retenção e carência, saque em cripto, transferências; Pix com saldo (em manutenção na produção).",
       "category": "payments",
       "tags": [
         "pix",
@@ -44,12 +46,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-webhooks",
       "source": "./luniumpay-webhooks",
-      "description": "Receber webhooks da LuniumPay com segurança — cadastrar a URL, validar a assinatura HMAC X-Lunium-Signature sobre o corpo cru, deduplicar por event_id, responder rápido e auditar entregas. Use ao impl",
+      "description": "Webhooks LuniumPay com segurança: HMAC X-Lunium-Signature sobre o corpo cru, dedupe por event_id, 2xx rápido, eventos novos ignorados, auditoria de entregas.",
       "category": "payments",
       "tags": [
         "pix",
@@ -57,12 +60,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-crypto-sale",
       "source": "./luniumpay-crypto-sale",
-      "description": "Pagar uma chave Pix ou um Pix copia e cola usando cripto (cash-out da LuniumPay) — cotação, aceite, depósito on-chain e Pix com comprovante E2E. Use quando o usuário quiser transformar USDT/USDC (ou o",
+      "description": "Pagar chave Pix ou copia e cola com cripto (cash-out): catálogo, prévia, ordem, aceite, depósito on-chain, Pix com comprovante E2E e devolução.",
       "category": "payments",
       "tags": [
         "pix",
@@ -70,12 +74,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-usdt-wallet",
       "source": "./luniumpay-usdt-wallet",
-      "description": "Carteira USDT/USDC na LuniumPay — depositar stablecoin em várias redes, manter saldo em cripto e pagar Pix com ele por chave Pix ou Pix Copia e Cola, com cotação, reserva e comprovante. Use quando o d",
+      "description": "Carteira USDT/USDC na LuniumPay: depósito em várias redes, saldo em cripto, Pix pago com ele (chave ou copia e cola), saque e webhooks wallet.*.",
       "category": "payments",
       "tags": [
         "pix",
@@ -83,12 +88,13 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     },
     {
       "name": "luniumpay-verify-payment",
       "source": "./luniumpay-verify-payment",
-      "description": "Provar que um pagamento Pix brasileiro liquidou de verdade, sem chave e sem conta, a partir do identificador E2E do Banco Central. Use quando alguém alegar \"já paguei\", antes de liberar produto/acesso",
+      "description": "Provar que um Pix liquidou pela LuniumPay a partir do E2E do Banco Central, consulta aberta a qualquer pessoa, antes de liberar produto ou acesso.",
       "category": "payments",
       "tags": [
         "pix",
@@ -96,7 +102,8 @@
         "usdt",
         "brazil",
         "payments"
-      ]
+      ],
+      "version": "3.0.0"
     }
   ]
 }

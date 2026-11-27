@@ -1,5 +1,8 @@
 # Express (Node 20+) — receber Pix e cair em USDT
 
+`.env` com `LUNIUM_API_KEY` (gerada no painel, gravada por `node luniumpay/scripts/chave.mjs`), `LUNIUM_WEBHOOK_SECRET`,
+`LUNIUM_DESTINO`, `LUNIUM_PAYOUT_ADDRESS`, `LUNIUM_CHAIN`. Rode com `node --env-file=.env lunium-server.mjs`.
+
 ```js
 import express from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -21,9 +24,21 @@ const app = express();
 
 async function lunium(path, init = {}) {
   const r = await fetch(BASE + path, { ...init, headers: { ...H, ...(init.headers || {}) } });
-  const b = await r.json();
-  if (!r.ok) { const e = new Error(b.detail || b.erro); e.lunium = b; throw e; }
+  const b = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(b.detail || b.erro); e.lunium = b; e.status = r.status; throw e; }
   return b;
+}
+// Erros da CONTA (chave, verificação do titular, liberação, manutenção): o pagador não resolve; o dono resolve no painel.
+const DA_CONTA = new Set(['chave_ausente', 'chave_incorreta', 'chave_desconhecida', 'nao_autenticado', 'verificacao_titular_pendente',
+  'recebimento_sem_autorizacao', 'em_manutencao', 'custodia_desligada', 'cashin_indisponivel']);
+function responderErro(res, e) {
+  const b = e?.lunium;
+  if (!b?.erro) return res.status(502).json({ erro: 'indisponivel', detail: 'Serviço de pagamento fora do ar. Tente de novo em instantes.' });
+  if (DA_CONTA.has(b.erro)) {
+    console.error('[lunium] conta não pronta:', b.erro, b.liberacao?.status || '', b.detail, b.request_id);   // para o dono; nunca em loop
+    return res.status(503).json({ erro: 'pagamento_indisponivel', detail: 'Pagamento por Pix indisponível no momento. Tente mais tarde.' });
+  }
+  return res.status(e.status >= 500 ? 502 : e.status).json({ erro: b.erro, acao: b.acao, detail: b.detail });
 }
 
 // Webhook ANTES do express.json(): precisa do corpo cru.
@@ -43,28 +58,31 @@ app.post('/webhooks/lunium', express.raw({ type: '*/*' }), (req, res) => {
 app.use(express.json());
 
 app.post('/cobrancas', async (req, res) => {
-  const { pedidoId, amountCents, payerTaxNumber } = req.body;
+  const { pedidoId, amountCents, payerTaxNumber, payerEmail } = req.body;
   if (!documentoValido(payerTaxNumber)) return res.status(400).json({ erro: 'documento_invalido', acao: 'corrigir', detail: 'CPF/CNPJ do pagador inválido' });
   try {
     const c = await lunium('/cashin/charge', { method: 'POST', body: JSON.stringify({
       amount_cents: amountCents,
       payer_tax_number: String(payerTaxNumber).replace(/\D/g, ''),
+      ...(typeof payerEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail) ? { payer_email: payerEmail.trim() } : {}),   // opcional
       destino,
       ...(destino === 'cripto' ? { asset: 'USDT', chain: process.env.LUNIUM_CHAIN || 'polygon', payout_address: process.env.LUNIUM_PAYOUT_ADDRESS } : {}),
       external_id: `pedido-${pedidoId}`,
       ...(isSandbox ? { sandbox_scenario: 'success' } : {}),
     }) });
-    res.json({ cashinId: c.cashin_id, qrImageUrl: c.qr_image_url, qrCopyPaste: c.qr_copypaste, expiresAt: c.expires_at });
-  } catch (e) {
-    // e.lunium.erro / acao / agent_guidance dizem o que fazer
-    res.status(e.lunium ? 400 : 502).json(e.lunium || { erro: 'indisponivel' });
-  }
+    res.json({ cashinId: c.cashin_id, qrImageUrl: c.qr_image_url, qrCopyPaste: c.qr_copypaste, amountCents: c.amount_cents,
+               expiresAt: c.expires_at, holdHours: c.hold_hours ?? 0, holdReason: c.hold_reason ?? null });
+  } catch (e) { responderErro(res, e); }
 });
 
 app.get('/cobrancas/:id', async (req, res) => {
-  const s = await lunium(`/cashin/${req.params.id}/status`);
-  res.json({ status: s.status, settlement: s.settlement_status, proof: s.settlement_proof,
-             liberado: s.status === 'paid' && s.settlement_status === 'sent', txUrl: s.settlement_tx_url });
+  if (!/^[A-Za-z0-9_-]{4,80}$/.test(req.params.id)) return res.status(400).json({ erro: 'id_invalido' });   // só ids que a API devolveu
+  try {
+    const s = await lunium(`/cashin/${req.params.id}/status`);
+    res.json({ status: s.status, settlement: s.settlement_status, proof: s.settlement_proof,
+               liberado: s.status === 'paid' && s.settlement_status === 'sent', txUrl: s.settlement_tx_url, e2e: s.e2e,
+               holdHours: s.hold_hours ?? 0, liberarEm: s.liberar_em ?? null, holdReason: s.hold_reason ?? null });   // motivo só se gravado
+  } catch (e) { responderErro(res, e); }
 });
 
 app.listen(3000);

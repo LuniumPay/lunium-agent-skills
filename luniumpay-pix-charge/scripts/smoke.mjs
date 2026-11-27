@@ -1,12 +1,27 @@
 #!/usr/bin/env node
 // Prova ponta a ponta no SANDBOX: cria cobrança, simula o Pix, lê o estado final.
 // Uso: LUNIUM_API_KEY=lun_test_... node smoke.mjs [destino=cripto|saldo] [cenario=success]
-// Sem LUNIUM_API_KEY: cria uma chave de teste com LUNIUM_SANDBOX_EMAIL (obrigatório).
+// Sem LUNIUM_API_KEY no ambiente, lê lun_test_ de .env.local/.env. Chave nasce no painel (a API não cria).
 // Recusa chaves de produção. Nenhum dinheiro real é movimentado.
+import { readFileSync } from 'node:fs';
+// Chave de TESTE: do ambiente ou do .env.local/.env da pasta atual (só lun_test_). A API não cria chave:
+// gere no painel (https://parceiros.luniumpay.com → "Conta real e testes" → "Acessar testes" → "Chaves de API")
+// e guarde com `node luniumpay/scripts/chave.mjs`.
+function chaveDeTeste() {
+  if (process.env.LUNIUM_API_KEY) return process.env.LUNIUM_API_KEY.trim();
+  for (const f of ['.env.local', '.env']) {
+    try { const m = readFileSync(f, 'utf8').match(/^[ \t]*(?:export[ \t]+)?LUNIUM_API_KEY[ \t]*=[ \t]*["']?(lun_test_[0-9a-f]{48})/m); if (m) return m[1]; } catch {}
+  }
+  return null;
+}
+const SEM_CHAVE = 'Sem chave de teste. Gere no painel (https://parceiros.luniumpay.com, entre com Google → "Conta real e testes" → '
+  + '"Acessar testes" → "Integração por API" › "Chaves de API") e guarde com node luniumpay/scripts/chave.mjs, '
+  + 'ou exporte LUNIUM_API_KEY=lun_test_… . A API não cria chave (403 sandbox_somente_no_painel).';
+let key = chaveDeTeste();
+if (!key) { console.error(SEM_CHAVE); process.exit(2); }
 const BASE = 'https://api.luniumpay.com';
 const destino = process.argv[2] || 'cripto';
 const cenario = process.argv[3] || 'success';
-let key = process.env.LUNIUM_API_KEY;
 
 async function call(path, init = {}) {
   const r = await fetch(BASE + path, { ...init, headers: { 'Content-Type': 'application/json', ...(key ? { 'X-API-Key': key } : {}), ...(init.headers || {}) } });
@@ -17,12 +32,6 @@ async function call(path, init = {}) {
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 if (key && !key.startsWith('lun_test_')) { console.error('Recusado: este script só roda com chave de sandbox (lun_test_).'); process.exit(2); }
-if (!key) {
-  const email = process.env.LUNIUM_SANDBOX_EMAIL;
-  if (!email) { console.error('Defina LUNIUM_API_KEY (lun_test_) ou LUNIUM_SANDBOX_EMAIL para criar uma chave de teste.'); process.exit(2); }
-  const k = await call('/keys/sandbox', { method: 'POST', body: JSON.stringify({ email, name: 'smoke-skill' }) });
-  key = k.api_key; console.log('chave de teste criada (não impressa); guarde-a no .env se quiser reutilizar');
-}
 
 const me = await call('/keys/me');
 console.log('conta:', me.key.prefix, 'cashin:', me.key.cashin_enabled, 'nivel:', me.nivel_conta?.nivel);
@@ -38,6 +47,7 @@ if (destino === 'cripto') {
 }
 const c = await call('/cashin/charge', { method: 'POST', body: JSON.stringify(body) });
 console.log('cobrança:', c.cashin_id, c.status, '| QR:', c.qr_copypaste, '| expira', c.expires_at);
+if (c.hold_hours || c.held || c.hold_reason) console.log('retenção:', c.hold_hours ?? c.held_hours, 'h · motivo', c.hold_reason || '(não gravado: não deduza)', '· libera em', c.liberar_em || '-');
 const again = await call('/cashin/charge', { method: 'POST', body: JSON.stringify(body) });
 console.log('idempotência:', again.cashin_id === c.cashin_id ? 'OK (mesmo cashin_id)' : 'FALHOU');
 
