@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-webhooks",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Webhooks LuniumPay com segurança: HMAC X-Lunium-Signature sobre o corpo cru, dedupe por event_id, 2xx rápido, eventos novos ignorados, auditoria de entregas.",
   "author": {
     "name": "LuniumPay",

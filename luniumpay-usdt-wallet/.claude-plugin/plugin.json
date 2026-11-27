@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-usdt-wallet",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Carteira USDT/USDC na LuniumPay: depósito em várias redes, saldo em cripto, Pix pago com ele (chave ou copia e cola), saque e webhooks wallet.*.",
   "author": {
     "name": "LuniumPay",

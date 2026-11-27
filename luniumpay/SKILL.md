@@ -3,9 +3,9 @@ name: luniumpay
 description: "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Use SEMPRE que o usuário mencionar receber Pix e cair em USDT/USDC, cobrar em reais com entrega em cripto, saldo em reais com saque em cripto, pagar Pix com cripto, carteira USDT, verificar um Pix, ou erros como sandbox_somente_no_painel, verificacao_titular_pendente e recebimento_sem_autorizacao. Ponto de entrada: pitch, chave pelo painel, prontidão da conta, árvore de decisão, roteiro, regras, erros/estados e sub-skills. EN: LuniumPay hub for Brazilian Pix ↔ stablecoin payments by API: accept Pix and settle USDT/USDC, BRL custody, pay Pix with crypto, USDT wallet, verify a Pix. API keys come from the partner dashboard (Google sign-in); production needs the account upgrade (owner identity check). Start here."
 license: MIT
 metadata:
-  version: "3.0.0"
-  api: "1.54.0"
-  revisao: "2026-11-27"
+  version: "3.0.1"
+  api: "1.55.0"
+  revisao: "2026-11-27.1"
 ---
 
 # LuniumPay — comece aqui

@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-crypto-sale",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Pagar chave Pix ou copia e cola com cripto (cash-out): catálogo, prévia, ordem, aceite, depósito on-chain, Pix com comprovante E2E e devolução.",
   "author": {
     "name": "LuniumPay",

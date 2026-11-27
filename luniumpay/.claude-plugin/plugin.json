@@ -1,6 +1,6 @@
 {
   "name": "luniumpay",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "LuniumPay — Pix ⇄ stablecoin no Brasil por API, para apps feitos com IA. Hub: chave pelo painel, prontidão da conta, roteiro, regras, erros e estados. Comece aqui.",
   "author": {
     "name": "LuniumPay",

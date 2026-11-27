@@ -1,4 +1,7 @@
-# O que mudou (skill 2.2.0 → 3.0.0 · API 1.45.2 → 1.54.0 + estado vivo de 27/11/2026)
+# O que mudou (skill 2.2.0 → 3.0.x · API 1.45.2 → 1.55.0 + estado vivo de 27/11/2026)
+
+**3.0.1:** acompanha a documentação 1.55.0 (revisão 2026-11-27.1), que passou a dizer o mesmo que esta skill:
+chave só pelo painel, `POST /keys` e `POST /keys/sandbox` documentados como 403, códigos novos no contrato.
 
 Integração feita com a skill 2.x? Confira estes pontos, na ordem.
 

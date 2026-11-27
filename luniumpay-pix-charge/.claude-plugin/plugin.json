@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-pix-charge",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Receber Pix e liquidar em USDT/USDC na carteira (ou em saldo em reais): QR por API, receitas Next.js/Express/FastAPI/Supabase, checkout React e smoke no sandbox.",
   "author": {
     "name": "LuniumPay",

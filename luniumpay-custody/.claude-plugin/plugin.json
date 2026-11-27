@@ -1,6 +1,6 @@
 {
   "name": "luniumpay-custody",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Saldo em reais sem carteira fixa: subcontas por cliente, retenção e carência, saque em cripto, transferências; Pix com saldo (em manutenção na produção).",
   "author": {
     "name": "LuniumPay",

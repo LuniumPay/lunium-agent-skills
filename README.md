@@ -99,7 +99,7 @@ SKILL.md são curtos de propósito. O contrato vivo manda:
 [openapi.json](https://docs.luniumpay.com/openapi.json) · [llms.txt](https://docs.luniumpay.com/llms.txt) ·
 [integration.json](https://docs.luniumpay.com/integration.json) · [sandbox](https://docs.luniumpay.com/sandbox) ·
 MCP `https://api.luniumpay.com/mcp`. Quando um texto divergir da resposta da API, vale a resposta
-(`erro`, `acao`, `agent_guidance`). Skills **3.0.0** · revisão 2026-11-27 · API 1.54.0.
+(`erro`, `acao`, `agent_guidance`). Skills **3.0.1** · revisão 2026-11-27 · API 1.55.0.
 
 Suporte: contato@luniumpay.com · https://wa.me/27722944340 · [Lunium Partners (Telegram)](https://t.me/+FerOZMRRP_g5MDk5)
 

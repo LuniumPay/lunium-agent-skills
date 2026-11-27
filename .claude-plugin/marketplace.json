@@ -19,7 +19,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-pix-charge",
@@ -33,7 +33,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-custody",
@@ -47,7 +47,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-webhooks",
@@ -61,7 +61,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-crypto-sale",
@@ -75,7 +75,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-usdt-wallet",
@@ -89,7 +89,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     },
     {
       "name": "luniumpay-verify-payment",
@@ -103,7 +103,7 @@
         "brazil",
         "payments"
       ],
-      "version": "3.0.0"
+      "version": "3.0.1"
     }
   ]
 }
